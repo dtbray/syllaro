@@ -1,0 +1,35 @@
+[build-system]
+requires = ["hatchling>=1.27,<2"]
+build-backend = "hatchling.build"
+
+[project]
+name = "syllaro"
+version = "0.1.0"
+description = "Local-first media transcription, speaker attribution, and concise briefings"
+readme = "README.md"
+requires-python = ">=3.10,<3.14"
+license = "AGPL-3.0-or-later"
+license-files = ["LICENSE"]
+authors = [{name = "Thomas Bray"}]
+dependencies = []
+
+[project.optional-dependencies]
+transcription = ["whisperx==3.8.6", "yt-dlp==2026.8.19"]
+dev = ["ruff>=0.14,<1"]
+
+[project.scripts]
+syllaro = "syllaro.cli:entrypoint"
+
+[project.urls]
+Repository = "https://github.com/dtbray/syllaro"
+Issues = "https://github.com/dtbray/syllaro/issues"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/syllaro"]
+
+[tool.ruff]
+target-version = "py310"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E4", "E7", "E9", "F", "I"]
