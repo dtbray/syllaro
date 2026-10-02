@@ -9,7 +9,7 @@ dist/
 build/
 .env
 *.env
-config.json
+/config.json
 data/
 models/
 *.log
