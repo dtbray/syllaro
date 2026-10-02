@@ -13,6 +13,8 @@ def main():
     parser.add_argument("audio", type=Path)
     parser.add_argument("transcript", type=Path)
     parser.add_argument("--threads", type=int, default=4)
+    parser.add_argument("--device", choices=["cpu", "cuda"], default="cpu")
+    parser.add_argument("--batch-size", type=int)
     args = parser.parse_args()
     token = os.environ.get("HF_TOKEN")
     if not token:
@@ -25,7 +27,12 @@ def main():
 
     torch.set_num_threads(args.threads)
     started = time.monotonic()
-    pipeline = DiarizationPipeline(token=token, device="cpu")
+    pipeline = DiarizationPipeline(token=token, device=args.device)
+    if args.batch_size is not None:
+        if args.batch_size < 1:
+            parser.error("--batch-size must be positive")
+        pipeline.model.segmentation_batch_size = args.batch_size
+        pipeline.model.embedding_batch_size = args.batch_size
     last_report = -10
 
     def progress(percent):

@@ -166,6 +166,40 @@ class SyllaroTest(unittest.TestCase):
             with self.assertRaisesRegex(RuntimeError, "already running"):
                 scout.work(self.root, self.config)
 
+    def test_cuda_transcription_routes_legacy_precision(self):
+        job = self.job(kind="youtube")
+        out = self.root / "test"
+        out.mkdir()
+        (out / "audio.wav").touch()
+        config = {**self.config, "device": "cuda", "diarize": False}
+
+        def fake_transcribe(args, log, config):
+            self.assertEqual(args[args.index("--device") + 1], "cuda")
+            self.assertEqual(args[args.index("--compute_type") + 1], "int8")
+            (out / "audio.json").write_text(
+                json.dumps({"segments": [{"start": 0, "end": 2, "text": "Topic"}]})
+            )
+
+        with (
+            patch.object(scout.shutil, "which", return_value="/fake"),
+            patch.object(scout, "run_process", side_effect=fake_transcribe),
+        ):
+            scout.process(job, self.root, config)
+
+    def test_cuda_subprocess_finds_wheel_libraries(self):
+        packages = self.root / "packages"
+        library = packages / "nvidia/cublas/lib"
+        library.mkdir(parents=True)
+        with (
+            patch.object(scout.sysconfig, "get_path", return_value=str(packages)),
+            patch.dict("os.environ", {"LD_LIBRARY_PATH": "/existing"}),
+            patch.object(scout.subprocess, "run") as run,
+        ):
+            scout.run_process(
+                ["whisperx"], self.root / "process.log", {**self.config, "device": "cuda"}
+            )
+            self.assertEqual(run.call_args.kwargs["env"]["LD_LIBRARY_PATH"], f"{library}:/existing")
+
 
 if __name__ == "__main__":
     unittest.main()

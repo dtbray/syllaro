@@ -9,6 +9,7 @@ import os
 import shutil
 import subprocess
 import sys
+import sysconfig
 import time
 import urllib.request
 import uuid
@@ -112,6 +113,15 @@ def run_process(args, log, config):
     env = os.environ.copy()
     env["OMP_NUM_THREADS"] = str(config["cpu_threads"])
     env["MKL_NUM_THREADS"] = str(config["cpu_threads"])
+    if config.get("device", "cpu") == "cuda":
+        packages = Path(sysconfig.get_path("purelib"))
+        libraries = [
+            packages / "nvidia" / name / "lib" for name in ("cublas", "cudnn", "cuda_runtime")
+        ]
+        paths = [str(p) for p in libraries if p.is_dir()]
+        if env.get("LD_LIBRARY_PATH"):
+            paths.append(env["LD_LIBRARY_PATH"])
+        env["LD_LIBRARY_PATH"] = ":".join(paths)
     with log.open("ab") as stream:
         subprocess.run(
             args,
@@ -132,6 +142,9 @@ def process(job, root, config):
         text = Path(job["source"]).read_text()
         (out / "transcript.txt").write_text(text)
     else:
+        device = config.get("device", "cpu")
+        if device not in ("cpu", "cuda"):
+            raise ValueError("device must be cpu or cuda")
         # Cache downloaded audio and transcripts across summary retries.
         transcript = out / "audio.json"
         if not transcript.exists():
@@ -165,9 +178,9 @@ def process(job, root, config):
                 "--model",
                 config["whisper_model"],
                 "--device",
-                "cpu",
+                device,
                 "--compute_type",
-                "int8",
+                config.get("compute_type", "int8"),
                 "--batch_size",
                 "1",
                 "--vad_method",
@@ -188,16 +201,22 @@ def process(job, root, config):
                 raise RuntimeError(
                     "HF_TOKEN required to add speaker labels to cached transcription"
                 )
+            diarization_device = config.get("diarization_device", device)
+            diarization_args = [
+                sys.executable,
+                "-m",
+                "syllaro.diarize",
+                str(out / "audio.wav"),
+                str(transcript),
+                "--threads",
+                str(config["cpu_threads"]),
+                "--device",
+                diarization_device,
+            ]
+            if diarization_device == "cuda" or "diarization_batch_size" in config:
+                diarization_args += ["--batch-size", str(config.get("diarization_batch_size", 4))]
             run_process(
-                [
-                    sys.executable,
-                    "-m",
-                    "syllaro.diarize",
-                    str(out / "audio.wav"),
-                    str(transcript),
-                    "--threads",
-                    str(config["cpu_threads"]),
-                ],
+                diarization_args,
                 out / "process.log",
                 config,
             )

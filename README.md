@@ -34,7 +34,8 @@ pip install -e '.[transcription]'
 
 Install FFmpeg separately. Transcription dependencies and first-run model
 downloads are substantial. Direct ML dependencies are pinned; their transitive
-dependencies are not yet locked. GPU support has not been validated.
+dependencies are not yet locked. For the validated GTX 1050 Ti configuration,
+see the [Pascal GPU setup](docs/gpu-pascal.md).
 
 ## First run
 
