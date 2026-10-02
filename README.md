@@ -1,7 +1,10 @@
 # Syllaro
 
 A local-first assistant that turns media into timestamped, speaker-labelled
-transcripts and concise briefings. Early prototype; real-media testing is next.
+transcripts and concise briefings. Early prototype; see the
+[first real-video test](docs/testing/2026-10-02-first-video.md) for measured CPU
+timings and limitations. That test completed the audio pipeline and used an
+assistant-written final briefing; automatic summary completion remains to test.
 
 YouTube audio → WhisperX/pyannote → transcript → local LLM → Markdown briefing.
 No paid API fallback. Inference endpoints must be loopback HTTP addresses;
@@ -25,6 +28,7 @@ Tests use a local mock inference server; no GPU, model weights, or API tokens
 are needed. The core CLI uses the standard library. For actual audio processing:
 
 ```bash
+pip install -r requirements-cpu.txt
 pip install -e '.[transcription]'
 ```
 
@@ -54,6 +58,9 @@ and provide a read-only Hugging Face token as `HF_TOKEN` in the worker's
 environment. Keep tokens outside Git and command-line arguments. Audio
 processing runs locally. Set `diarize` to false to skip speaker attribution.
 Speaker labels do not establish real names; overlapping speech needs review.
+Silero performs speech detection without a gated model. Speaker diarization
+runs separately after alignment, so a cached transcript can gain speaker
+labels without repeating transcription. Its token is read from the environment.
 
 Jobs and artifacts live under `~/.local/share/syllaro/`: raw audio, WhisperX
 JSON, timestamped transcript, partial summaries, final summary, and process log.

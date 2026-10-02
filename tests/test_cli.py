@@ -77,6 +77,7 @@ class SyllaroTest(unittest.TestCase):
         scout.work(self.root, self.config)
         result = json.loads((self.root / "test.json").read_text())
         self.assertEqual(result["status"], "done")
+        self.assertEqual(result["summary_provider"], "local")
         self.assertIn("SPEAKER_00", (self.root / "test/summary.md").read_text())
         self.assertTrue((self.root / "test/chunk-summaries.md").exists())
 
@@ -114,6 +115,50 @@ class SyllaroTest(unittest.TestCase):
         ]:
             with self.assertRaises(ValueError):
                 scout.validate_endpoint(url)
+
+    def test_cached_transcript_can_gain_speaker_labels(self):
+        job = self.job(kind="youtube")
+        out = self.root / "test"
+        out.mkdir()
+        raw = {"segments": [{"start": 0, "end": 2, "text": "Topic"}]}
+        (out / "audio.json").write_text(json.dumps(raw))
+
+        def fake_diarize(args, log, config):
+            self.assertEqual(args[1:3], ["-m", "syllaro.diarize"])
+            raw["segments"][0]["speaker"] = "SPEAKER_00"
+            raw["_syllaro_diarized"] = True
+            (out / "audio.json").write_text(json.dumps(raw))
+
+        with (
+            patch.dict("os.environ", {"HF_TOKEN": "test"}),
+            patch.object(scout, "run_process", side_effect=fake_diarize) as run,
+        ):
+            scout.process(job, self.root, self.config)
+            self.assertEqual(run.call_count, 1)
+        self.assertIn("SPEAKER_00", (out / "transcript.txt").read_text())
+
+    def test_tokenless_transcription_uses_silero(self):
+        job = self.job(kind="youtube")
+        out = self.root / "test"
+        out.mkdir()
+        (out / "audio.wav").touch()
+        config = {**self.config, "diarize": False}
+
+        def fake_transcribe(args, log, config):
+            self.assertEqual(args[0], "whisperx")
+            self.assertEqual(args[args.index("--vad_method") + 1], "silero")
+            self.assertNotIn("--hf_token", args)
+            (out / "audio.json").write_text(
+                json.dumps({"segments": [{"start": 0, "end": 2, "text": "Topic"}]})
+            )
+
+        with (
+            patch.dict("os.environ", {}, clear=True),
+            patch.object(scout.shutil, "which", return_value="/fake"),
+            patch.object(scout, "run_process", side_effect=fake_transcribe) as run,
+        ):
+            scout.process(job, self.root, config)
+            self.assertEqual(run.call_count, 1)
 
     def test_exclusive_worker_lock(self):
         with (self.root / "worker.lock").open("w") as lock:

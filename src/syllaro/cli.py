@@ -170,6 +170,8 @@ def process(job, root, config):
                 "int8",
                 "--batch_size",
                 "1",
+                "--vad_method",
+                "silero",
                 "--threads",
                 str(config["cpu_threads"]),
                 "--output_format",
@@ -177,11 +179,29 @@ def process(job, root, config):
                 "--output_dir",
                 str(out),
             ]
-            # whisperx reads HF_TOKEN from its environment; keep it out of argv/logs.
-            if config["diarize"]:
-                args.append("--diarize")
             run_process(args, out / "process.log", config)
         data = json.loads(transcript.read_text())
+        if config["diarize"] and not (
+            data.get("_syllaro_diarized") or any(s.get("speaker") for s in data["segments"])
+        ):
+            if not os.environ.get("HF_TOKEN"):
+                raise RuntimeError(
+                    "HF_TOKEN required to add speaker labels to cached transcription"
+                )
+            run_process(
+                [
+                    sys.executable,
+                    "-m",
+                    "syllaro.diarize",
+                    str(out / "audio.wav"),
+                    str(transcript),
+                    "--threads",
+                    str(config["cpu_threads"]),
+                ],
+                out / "process.log",
+                config,
+            )
+            data = json.loads(transcript.read_text())
         text = "\n".join(
             f"[{float(s['start']):.1f}s–{float(s['end']):.1f}s] "
             f"{s.get('speaker', 'SPEAKER_UNKNOWN')}: {s['text'].strip()}"
@@ -212,6 +232,7 @@ def work(root, config):
             write_json(path, job)
             try:
                 job["output"] = process(job, root, config)
+                job["summary_provider"] = job["profile"]
                 job["status"] = "done"
             except Exception as error:
                 job.update(status="failed", error=str(error))
@@ -282,7 +303,15 @@ def main():
                 json.dumps(
                     {
                         k: job.get(k)
-                        for k in ("id", "status", "profile", "source", "output", "error")
+                        for k in (
+                            "id",
+                            "status",
+                            "profile",
+                            "summary_provider",
+                            "source",
+                            "output",
+                            "error",
+                        )
                     }
                 )
             )
