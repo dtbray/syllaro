@@ -242,6 +242,9 @@ class SyllaroTest(unittest.TestCase):
                 scout.ingest(job, self.root, self.config)
             run.assert_not_called()
 
+    @unittest.skipIf(
+        scout.os.geteuid() == 0, "Read-only permission enforcement requires non-root uid"
+    )
     def test_readonly_cached_transcript_still_allows_safe_media_cleanup(self):
         job = self.job(kind="youtube")
         out = self.root / "test"
@@ -262,6 +265,13 @@ class SyllaroTest(unittest.TestCase):
         scout.ingest(job, self.root, self.config)
         self.assertFalse((out / "audio.wav").exists())
         self.assertEqual(artifact.stat().st_mode & 0o777, 0o400)
+
+    def test_directory_sync_error_identifies_path_and_errno(self):
+        with patch.object(scout.os, "open", side_effect=PermissionError(13, "Permission denied")):
+            with self.assertRaises(RuntimeError) as raised:
+                scout.sync_directory(self.root)
+        self.assertIn(str(self.root), str(raised.exception))
+        self.assertIn("Errno 13", str(raised.exception))
 
     def test_gpu_only_diarization_adds_wheel_libraries(self):
         packages = self.root / "packages"

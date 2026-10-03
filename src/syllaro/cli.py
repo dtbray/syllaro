@@ -43,9 +43,12 @@ def sync_directory(path):
     try:
         descriptor = os.open(path, os.O_RDONLY | os.O_DIRECTORY)
     except OSError as error:
-        raise RuntimeError("Queue/output directories must be readable and support fsync") from error
+        raise RuntimeError(f"Cannot open directory for sync {path}: {error}") from error
     try:
-        os.fsync(descriptor)
+        try:
+            os.fsync(descriptor)
+        except OSError as error:
+            raise RuntimeError(f"Cannot sync directory {path}: {error}") from error
     finally:
         os.close(descriptor)
 
@@ -277,7 +280,10 @@ def ingest(job: Job, root: Path, config: Config) -> str:
                 # Linux permits fsync on readable cached files restored read-only.
                 stream = artifact.open("rb")
             with stream:
-                os.fsync(stream.fileno())
+                try:
+                    os.fsync(stream.fileno())
+                except OSError as error:
+                    raise RuntimeError(f"Cannot sync artifact {artifact}: {error}") from error
     sync_directory(out)
     sync_directory(root)
     # Delete only downloaded media after successful transcription and diarization.

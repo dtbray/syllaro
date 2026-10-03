@@ -250,5 +250,29 @@
     "url": "https://github.com/dtbray/syllaro/pull/3#discussion_r4171639274",
     "path": "src/syllaro/cli.py",
     "disposition": "Readable cached artifacts restored read-only can use Linux read-only-descriptor fsync; added regression coverage. File-data fsync is preserved; directory fsync alone does not flush file contents."
+  },
+  {
+    "id": 4171675311,
+    "url": "https://github.com/dtbray/syllaro/pull/3#discussion_r4171675311",
+    "path": "src/syllaro/cli.py",
+    "disposition": "Pre-write sync is an intentional capability preflight before committing a queue record; it avoids ambiguous submission failure after rename on unreadable/unsupported directories. Retained under the documented durable queue contract."
+  },
+  {
+    "id": 4171675312,
+    "url": "https://github.com/dtbray/syllaro/pull/3#discussion_r4171675312",
+    "path": "src/syllaro/cli.py",
+    "disposition": "Sync errors now include directory/artifact path and underlying errno; added directory permission-error regression coverage."
+  },
+  {
+    "id": 4171675319,
+    "url": "https://github.com/dtbray/syllaro/pull/3#discussion_r4171675319",
+    "path": "src/syllaro/cli.py",
+    "disposition": "Unsupported filesystem sync fails safely before media removal with path/errno context. Skipping file-content sync for cached files would weaken the promised durable-before-delete policy."
+  },
+  {
+    "id": 4171675324,
+    "url": "https://github.com/dtbray/syllaro/pull/3#discussion_r4171675324",
+    "path": "src/syllaro/cli.py",
+    "disposition": "The read-only artifact regression is skipped for uid 0 so root cannot produce false permission coverage; normal local and GitHub CI run non-root."
   }
 ]
