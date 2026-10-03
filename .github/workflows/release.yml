@@ -47,6 +47,7 @@ jobs:
       - name: Smoke-test installed wheel
         run: |
           python -m venv /tmp/syllaro-wheel
+          /tmp/syllaro-wheel/bin/pip install --upgrade pip
           /tmp/syllaro-wheel/bin/pip install --no-deps dist/*.whl
           cd /tmp
           test "$(/tmp/syllaro-wheel/bin/syllaro --version)" = "${RELEASE_TAG#v}"
