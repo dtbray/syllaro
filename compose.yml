@@ -1,0 +1,53 @@
+services:
+  cli:
+    image: syllaro:core
+    build:
+      context: .
+      target: core
+    user: "${SYLLARO_UID:-1000}:${SYLLARO_GID:-1000}"
+    volumes:
+      - ${SYLLARO_CONFIG_DIR:-./examples/container}:/config:ro
+      - ${SYLLARO_DATA_DIR:-./data}:/data
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+
+  summarize:
+    extends:
+      service: cli
+    profiles: [summary]
+    # Linux: reaches the existing loopback SSH tunnel without exposing an API.
+    network_mode: host
+    command: [summarize, --limit, "5"]
+
+  ingest:
+    image: syllaro:pascal
+    build:
+      context: .
+      target: pascal
+    profiles: [gpu]
+    user: "${SYLLARO_UID:-1000}:${SYLLARO_GID:-1000}"
+    environment:
+      MPLCONFIGDIR: /tmp/matplotlib
+      XDG_CACHE_HOME: /tmp/.cache
+    env_file:
+      - ${SYLLARO_SECRETS_FILE:-./secrets.env}
+    volumes:
+      - ${SYLLARO_CONFIG_DIR:-./examples/container}:/config:ro
+      - ${SYLLARO_DATA_DIR:-./data}:/data
+      - ${SYLLARO_CACHE_DIR:-./models}:/cache
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    command: [ingest, --limit, "5"]

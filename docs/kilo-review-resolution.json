@@ -1,0 +1,326 @@
+[
+  {
+    "id": 4170557563,
+    "url": "https://github.com/dtbray/syllaro/pull/1#discussion_r4170557563",
+    "path": "src/syllaro/cli.py",
+    "disposition": "Addressed in consolidated release branch; see code, config, dependency pins, regression tests and docs."
+  },
+  {
+    "id": 4170557565,
+    "url": "https://github.com/dtbray/syllaro/pull/1#discussion_r4170557565",
+    "path": "src/syllaro/cli.py",
+    "disposition": "Addressed in consolidated release branch; see code, config, dependency pins, regression tests and docs."
+  },
+  {
+    "id": 4170557568,
+    "url": "https://github.com/dtbray/syllaro/pull/1#discussion_r4170557568",
+    "path": "src/syllaro/cli.py",
+    "disposition": "Addressed in consolidated release branch; see code, config, dependency pins, regression tests and docs."
+  },
+  {
+    "id": 4170557570,
+    "url": "https://github.com/dtbray/syllaro/pull/1#discussion_r4170557570",
+    "path": "src/syllaro/cli.py",
+    "disposition": "Addressed in consolidated release branch; see code, config, dependency pins, regression tests and docs."
+  },
+  {
+    "id": 4170557575,
+    "url": "https://github.com/dtbray/syllaro/pull/1#discussion_r4170557575",
+    "path": "src/syllaro/cli.py",
+    "disposition": "Clarified assistant provenance was manually recorded; automated summaries record actual selected local/workstation provider."
+  },
+  {
+    "id": 4170557581,
+    "url": "https://github.com/dtbray/syllaro/pull/1#discussion_r4170557581",
+    "path": "src/syllaro/diarize.py",
+    "disposition": "Addressed in consolidated release branch; see code, config, dependency pins, regression tests and docs."
+  },
+  {
+    "id": 4170557585,
+    "url": "https://github.com/dtbray/syllaro/pull/1#discussion_r4170557585",
+    "path": "src/syllaro/diarize.py",
+    "disposition": "Addressed in consolidated release branch; see code, config, dependency pins, regression tests and docs."
+  },
+  {
+    "id": 4170557588,
+    "url": "https://github.com/dtbray/syllaro/pull/1#discussion_r4170557588",
+    "path": "src/syllaro/diarize.py",
+    "disposition": "Original API premise incorrect; verified installed WhisperX model attribute/DataFrame return and pyannote batching properties. Added tests and removed diagnostics coupling."
+  },
+  {
+    "id": 4170557592,
+    "url": "https://github.com/dtbray/syllaro/pull/1#discussion_r4170557592",
+    "path": "requirements-cpu.txt",
+    "disposition": "Addressed in consolidated release branch; see code, config, dependency pins, regression tests and docs."
+  },
+  {
+    "id": 4170557596,
+    "url": "https://github.com/dtbray/syllaro/pull/1#discussion_r4170557596",
+    "path": "requirements-cpu.txt",
+    "disposition": "Kept torchvision pinned to the validated Torch stack; removal is optional optimization, not a blocker."
+  },
+  {
+    "id": 4170557599,
+    "url": "https://github.com/dtbray/syllaro/pull/1#discussion_r4170557599",
+    "path": "tests/test_cli.py",
+    "disposition": "Addressed in consolidated release branch; see code, config, dependency pins, regression tests and docs."
+  },
+  {
+    "id": 4170688501,
+    "url": "https://github.com/dtbray/syllaro/pull/2#discussion_r4170688501",
+    "path": "src/syllaro/cli.py",
+    "disposition": "Addressed in consolidated release branch; see code, config, dependency pins, regression tests and docs."
+  },
+  {
+    "id": 4170688505,
+    "url": "https://github.com/dtbray/syllaro/pull/2#discussion_r4170688505",
+    "path": "src/syllaro/cli.py",
+    "disposition": "Addressed in consolidated release branch; see code, config, dependency pins, regression tests and docs."
+  },
+  {
+    "id": 4170688513,
+    "url": "https://github.com/dtbray/syllaro/pull/2#discussion_r4170688513",
+    "path": "src/syllaro/cli.py",
+    "disposition": "Addressed in consolidated release branch; see code, config, dependency pins, regression tests and docs."
+  },
+  {
+    "id": 4170688516,
+    "url": "https://github.com/dtbray/syllaro/pull/2#discussion_r4170688516",
+    "path": "src/syllaro/cli.py",
+    "disposition": "Addressed in consolidated release branch; see code, config, dependency pins, regression tests and docs."
+  },
+  {
+    "id": 4170688520,
+    "url": "https://github.com/dtbray/syllaro/pull/2#discussion_r4170688520",
+    "path": "src/syllaro/cli.py",
+    "disposition": "Addressed in consolidated release branch; see code, config, dependency pins, regression tests and docs."
+  },
+  {
+    "id": 4170688524,
+    "url": "https://github.com/dtbray/syllaro/pull/2#discussion_r4170688524",
+    "path": "src/syllaro/cli.py",
+    "disposition": "Addressed in consolidated release branch; see code, config, dependency pins, regression tests and docs."
+  },
+  {
+    "id": 4170688529,
+    "url": "https://github.com/dtbray/syllaro/pull/2#discussion_r4170688529",
+    "path": "src/syllaro/cli.py",
+    "disposition": "Addressed in consolidated release branch; see code, config, dependency pins, regression tests and docs."
+  },
+  {
+    "id": 4170688531,
+    "url": "https://github.com/dtbray/syllaro/pull/2#discussion_r4170688531",
+    "path": "src/syllaro/diarize.py",
+    "disposition": "Original API premise incorrect; verified installed WhisperX model attribute/DataFrame return and pyannote batching properties. Added tests and removed diagnostics coupling."
+  },
+  {
+    "id": 4170688538,
+    "url": "https://github.com/dtbray/syllaro/pull/2#discussion_r4170688538",
+    "path": "src/syllaro/diarize.py",
+    "disposition": "Addressed in consolidated release branch; see code, config, dependency pins, regression tests and docs."
+  },
+  {
+    "id": 4170688540,
+    "url": "https://github.com/dtbray/syllaro/pull/2#discussion_r4170688540",
+    "path": "tests/test_cli.py",
+    "disposition": "Addressed in consolidated release branch; see code, config, dependency pins, regression tests and docs."
+  },
+  {
+    "id": 4170688543,
+    "url": "https://github.com/dtbray/syllaro/pull/2#discussion_r4170688543",
+    "path": "docs/gpu-pascal.md",
+    "disposition": "Addressed in consolidated release branch; see code, config, dependency pins, regression tests and docs."
+  },
+  {
+    "id": 4170688544,
+    "url": "https://github.com/dtbray/syllaro/pull/2#discussion_r4170688544",
+    "path": "docs/gpu-pascal.md",
+    "disposition": "Addressed in consolidated release branch; see code, config, dependency pins, regression tests and docs."
+  },
+  {
+    "id": 4170688546,
+    "url": "https://github.com/dtbray/syllaro/pull/2#discussion_r4170688546",
+    "path": "docs/gpu-pascal.md",
+    "disposition": "Addressed in consolidated release branch; see code, config, dependency pins, regression tests and docs."
+  },
+  {
+    "id": 4171595890,
+    "url": "https://github.com/dtbray/syllaro/pull/3#discussion_r4171595890",
+    "path": "src/syllaro/cli.py",
+    "disposition": "Verified python -I -m whisperx --help exits 0 in the pinned GPU venv; module entrypoint exists."
+  },
+  {
+    "id": 4171595892,
+    "url": "https://github.com/dtbray/syllaro/pull/3#discussion_r4171595892",
+    "path": "src/syllaro/cli.py",
+    "disposition": "Addressed through queue loading/recovery, schema validation, fsync, CPU batching, default inference profile, or release-tool constraints; regression checks added."
+  },
+  {
+    "id": 4171595893,
+    "url": "https://github.com/dtbray/syllaro/pull/3#discussion_r4171595893",
+    "path": "src/syllaro/cli.py",
+    "disposition": "Addressed through queue loading/recovery, schema validation, fsync, CPU batching, default inference profile, or release-tool constraints; regression checks added."
+  },
+  {
+    "id": 4171595898,
+    "url": "https://github.com/dtbray/syllaro/pull/3#discussion_r4171595898",
+    "path": "src/syllaro/cli.py",
+    "disposition": "Addressed through queue loading/recovery, schema validation, fsync, CPU batching, default inference profile, or release-tool constraints; regression checks added."
+  },
+  {
+    "id": 4171595902,
+    "url": "https://github.com/dtbray/syllaro/pull/3#discussion_r4171595902",
+    "path": "src/syllaro/cli.py",
+    "disposition": "Addressed through queue loading/recovery, schema validation, fsync, CPU batching, default inference profile, or release-tool constraints; regression checks added."
+  },
+  {
+    "id": 4171595904,
+    "url": "https://github.com/dtbray/syllaro/pull/3#discussion_r4171595904",
+    "path": "src/syllaro/cli.py",
+    "disposition": "Addressed through queue loading/recovery, schema validation, fsync, CPU batching, default inference profile, or release-tool constraints; regression checks added."
+  },
+  {
+    "id": 4171595908,
+    "url": "https://github.com/dtbray/syllaro/pull/3#discussion_r4171595908",
+    "path": "src/syllaro/cli.py",
+    "disposition": "Addressed through queue loading/recovery, schema validation, fsync, CPU batching, default inference profile, or release-tool constraints; regression checks added."
+  },
+  {
+    "id": 4171595912,
+    "url": "https://github.com/dtbray/syllaro/pull/3#discussion_r4171595912",
+    "path": "src/syllaro/schema.py",
+    "disposition": "Addressed through queue loading/recovery, schema validation, fsync, CPU batching, default inference profile, or release-tool constraints; regression checks added."
+  },
+  {
+    "id": 4171595914,
+    "url": "https://github.com/dtbray/syllaro/pull/3#discussion_r4171595914",
+    "path": "src/syllaro/schema.py",
+    "disposition": "Addressed through queue loading/recovery, schema validation, fsync, CPU batching, default inference profile, or release-tool constraints; regression checks added."
+  },
+  {
+    "id": 4171595918,
+    "url": "https://github.com/dtbray/syllaro/pull/3#discussion_r4171595918",
+    "path": "src/syllaro/schema.py",
+    "disposition": "Addressed through queue loading/recovery, schema validation, fsync, CPU batching, default inference profile, or release-tool constraints; regression checks added."
+  },
+  {
+    "id": 4171595921,
+    "url": "https://github.com/dtbray/syllaro/pull/3#discussion_r4171595921",
+    "path": "Dockerfile",
+    "disposition": "Added official-index artifact hashes and --require-hashes installation; exact plain TorchCodec selected."
+  },
+  {
+    "id": 4171595924,
+    "url": "https://github.com/dtbray/syllaro/pull/3#discussion_r4171595924",
+    "path": ".github/workflows/release.yml",
+    "disposition": "Addressed through queue loading/recovery, schema validation, fsync, CPU batching, default inference profile, or release-tool constraints; regression checks added."
+  },
+  {
+    "id": 4171595928,
+    "url": "https://github.com/dtbray/syllaro/pull/3#discussion_r4171595928",
+    "path": "examples/container/config.json",
+    "disposition": "Addressed through queue loading/recovery, schema validation, fsync, CPU batching, default inference profile, or release-tool constraints; regression checks added."
+  },
+  {
+    "id": 4171639260,
+    "url": "https://github.com/dtbray/syllaro/pull/3#discussion_r4171639260",
+    "path": "Dockerfile",
+    "disposition": "Verified packaging SpecifierSet: ===0.7.0 accepts plain 0.7.0 and rejects 0.7.0+cu126. Successful hash-verified download selects the plain PyPI artifact."
+  },
+  {
+    "id": 4171639263,
+    "url": "https://github.com/dtbray/syllaro/pull/3#discussion_r4171639263",
+    "path": "src/syllaro/schema.py",
+    "disposition": "Validation is syntactic, not a server availability check; loopback-only policy was already required. Documented earlier validation timing in changelog; profile-less ingestion remains supported."
+  },
+  {
+    "id": 4171639265,
+    "url": "https://github.com/dtbray/syllaro/pull/3#discussion_r4171639265",
+    "path": "src/syllaro/schema.py",
+    "disposition": "Documented strict unknown-key validation as a pre-1.0 compatibility change. TypedDict annotation inheritance is intentional."
+  },
+  {
+    "id": 4171639267,
+    "url": "https://github.com/dtbray/syllaro/pull/3#discussion_r4171639267",
+    "path": "src/syllaro/cli.py",
+    "disposition": "Preserved strict directory durability rather than silently deleting media after a sync failure. Required readable/writable directories are documented; failures report an actionable error."
+  },
+  {
+    "id": 4171639274,
+    "url": "https://github.com/dtbray/syllaro/pull/3#discussion_r4171639274",
+    "path": "src/syllaro/cli.py",
+    "disposition": "Readable cached artifacts restored read-only can use Linux read-only-descriptor fsync; added regression coverage. File-data fsync is preserved; directory fsync alone does not flush file contents."
+  },
+  {
+    "id": 4171675311,
+    "url": "https://github.com/dtbray/syllaro/pull/3#discussion_r4171675311",
+    "path": "src/syllaro/cli.py",
+    "disposition": "Pre-write sync is an intentional capability preflight before committing a queue record; it avoids ambiguous submission failure after rename on unreadable/unsupported directories. Retained under the documented durable queue contract."
+  },
+  {
+    "id": 4171675312,
+    "url": "https://github.com/dtbray/syllaro/pull/3#discussion_r4171675312",
+    "path": "src/syllaro/cli.py",
+    "disposition": "Sync errors now include directory/artifact path and underlying errno; added directory permission-error regression coverage."
+  },
+  {
+    "id": 4171675319,
+    "url": "https://github.com/dtbray/syllaro/pull/3#discussion_r4171675319",
+    "path": "src/syllaro/cli.py",
+    "disposition": "Unsupported filesystem sync fails safely before media removal with path/errno context. Skipping file-content sync for cached files would weaken the promised durable-before-delete policy."
+  },
+  {
+    "id": 4171675324,
+    "url": "https://github.com/dtbray/syllaro/pull/3#discussion_r4171675324",
+    "path": "tests/test_cli.py",
+    "disposition": "The read-only artifact regression is skipped for uid 0 so root cannot produce false permission coverage; normal local and GitHub CI run non-root."
+  },
+  {
+    "id": 4171712468,
+    "url": "https://github.com/dtbray/syllaro/pull/3#discussion_r4171712468",
+    "path": "src/syllaro/cli.py",
+    "disposition": "Preserve fsync errors when close also fails, and report close-only errors with directory context."
+  },
+  {
+    "id": 4171712475,
+    "url": "https://github.com/dtbray/syllaro/pull/3#discussion_r4171712475",
+    "path": "tests/test_cli.py",
+    "disposition": "Regression tests cover directory fsync failure plus artifact failure and media retention."
+  },
+  {
+    "id": 4171712479,
+    "url": "https://github.com/dtbray/syllaro/pull/3#discussion_r4171712479",
+    "path": "tests/test_cli.py",
+    "disposition": "The os.open mock now raises only for the target directory and delegates all other calls."
+  },
+  {
+    "id": 4171744899,
+    "url": "https://github.com/dtbray/syllaro/pull/3#discussion_r4171744899",
+    "path": "src/syllaro/cli.py",
+    "disposition": "Added close-only failure regression checking operation, path and errno."
+  },
+  {
+    "id": 4171744904,
+    "url": "https://github.com/dtbray/syllaro/pull/3#discussion_r4171744904",
+    "path": "src/syllaro/cli.py",
+    "disposition": "Distinguish close failure from sync failure in the operator diagnostic."
+  },
+  {
+    "id": 4171744908,
+    "url": "https://github.com/dtbray/syllaro/pull/3#discussion_r4171744908",
+    "path": "docs/kilo-review-resolution.json",
+    "disposition": "Corrected the referenced review comment path to tests/test_cli.py."
+  },
+  {
+    "id": 4171751399,
+    "url": "https://github.com/dtbray/syllaro/pull/3#discussion_r4171751399",
+    "path": "docs/kilo-review-resolution.json",
+    "disposition": "Reconciled all ledger paths against GitHub comment metadata."
+  },
+  {
+    "id": 4171751410,
+    "url": "https://github.com/dtbray/syllaro/pull/3#discussion_r4171751410",
+    "path": "tests/test_cli.py",
+    "disposition": "Mock successful fsync in close-only regression so it isolates descriptor cleanup across platforms."
+  }
+]

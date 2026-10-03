@@ -1,0 +1,9 @@
+[Unit]
+Description=Syllaro queued workstation summaries
+
+[Service]
+Type=oneshot
+WorkingDirectory=%h/agents/syllaro
+ExecStart=%h/agents/syllaro/.venv-gpu/bin/syllaro --config %h/.config/syllaro/config.json summarize --limit 5
+TimeoutStartSec=infinity
+UMask=0077

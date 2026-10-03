@@ -1,0 +1,22 @@
+{
+  "data_dir": "~/.local/share/syllaro",
+  "whisper_model": "small",
+  "cpu_threads": 4,
+  "diarize": true,
+  "local": {
+    "base_url": "http://127.0.0.1:11434/v1",
+    "model": "qwen3:4b"
+  },
+  "workstation": {
+    "base_url": "http://127.0.0.1:18083/v1",
+    "model": "qwen3.8-27b"
+  },
+  "chunk_chars": 12000,
+  "http_timeout": 600,
+  "process_timeout": 14400,
+  "device": "cuda",
+  "compute_type": "int8",
+  "diarization_device": "cuda",
+  "diarization_batch_size": 4,
+  "batch_size": 1
+}
