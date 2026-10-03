@@ -303,7 +303,10 @@ class SyllaroTest(unittest.TestCase):
             original_close(descriptor)
             raise OSError(9, "Bad file descriptor")
 
-        with patch.object(scout.os, "close", side_effect=failed_close):
+        with (
+            patch.object(scout.os, "fsync"),
+            patch.object(scout.os, "close", side_effect=failed_close),
+        ):
             with self.assertRaises(RuntimeError) as raised:
                 scout.sync_directory(self.root)
         self.assertIn(f"Cannot close directory {self.root}", str(raised.exception))

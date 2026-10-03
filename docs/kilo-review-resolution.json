@@ -296,7 +296,7 @@
   {
     "id": 4171744899,
     "url": "https://github.com/dtbray/syllaro/pull/3#discussion_r4171744899",
-    "path": "tests/test_cli.py",
+    "path": "src/syllaro/cli.py",
     "disposition": "Added close-only failure regression checking operation, path and errno."
   },
   {
@@ -310,5 +310,17 @@
     "url": "https://github.com/dtbray/syllaro/pull/3#discussion_r4171744908",
     "path": "docs/kilo-review-resolution.json",
     "disposition": "Corrected the referenced review comment path to tests/test_cli.py."
+  },
+  {
+    "id": 4171751399,
+    "url": "https://github.com/dtbray/syllaro/pull/3#discussion_r4171751399",
+    "path": "docs/kilo-review-resolution.json",
+    "disposition": "Reconciled all ledger paths against GitHub comment metadata."
+  },
+  {
+    "id": 4171751410,
+    "url": "https://github.com/dtbray/syllaro/pull/3#discussion_r4171751410",
+    "path": "tests/test_cli.py",
+    "disposition": "Mock successful fsync in close-only regression so it isolates descriptor cleanup across platforms."
   }
 ]
