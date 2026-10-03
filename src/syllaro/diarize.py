@@ -9,6 +9,7 @@ from pathlib import Path
 
 
 def main():
+    os.umask(0o077)
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("audio", type=Path)
     parser.add_argument("transcript", type=Path)
@@ -16,6 +17,10 @@ def main():
     parser.add_argument("--device", choices=["cpu", "cuda"], default="cpu")
     parser.add_argument("--batch-size", type=int)
     args = parser.parse_args()
+    if args.threads < 1 or (args.batch_size is not None and args.batch_size < 1):
+        parser.error("threads and batch size must be positive")
+    if not args.audio.is_file() or not args.transcript.is_file():
+        parser.error("Audio and transcript files must exist")
     token = os.environ.get("HF_TOKEN")
     if not token:
         parser.error("HF_TOKEN is required for local diarization")
@@ -29,8 +34,6 @@ def main():
     started = time.monotonic()
     pipeline = DiarizationPipeline(token=token, device=args.device)
     if args.batch_size is not None:
-        if args.batch_size < 1:
-            parser.error("--batch-size must be positive")
         pipeline.model.segmentation_batch_size = args.batch_size
         pipeline.model.embedding_batch_size = args.batch_size
     last_report = -10
@@ -46,19 +49,15 @@ def main():
     transcript = json.loads(args.transcript.read_text())
     result = whisperx.assign_word_speakers(turns, transcript)
     result["_syllaro_diarized"] = True
+    diagnostics = {
+        "speaker_count": len({s.get("speaker") for s in result["segments"] if s.get("speaker")}),
+        "diarization_seconds": round(time.monotonic() - started, 1),
+    }
     temporary = args.transcript.with_suffix(".diarized.tmp")
+    temporary.unlink(missing_ok=True)
     temporary.write_text(json.dumps(result, indent=2) + "\n")
     temporary.replace(args.transcript)
-    print(
-        json.dumps(
-            {
-                "speaker_count": len(set(turns["speaker"])),
-                "turns": len(turns),
-                "diarization_seconds": round(time.monotonic() - started, 1),
-            }
-        ),
-        flush=True,
-    )
+    print(json.dumps(diagnostics), flush=True)
 
 
 if __name__ == "__main__":

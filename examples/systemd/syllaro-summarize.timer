@@ -1,0 +1,10 @@
+[Unit]
+Description=Syllaro overnight summary window (example; adjust before enabling)
+
+[Timer]
+OnCalendar=*-*-* 03:00:00
+Persistent=true
+Unit=syllaro-summarize.service
+
+[Install]
+WantedBy=timers.target

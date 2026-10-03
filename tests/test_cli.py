@@ -65,7 +65,7 @@ class SyllaroTest(unittest.TestCase):
         job = {
             "id": "test",
             "profile": "local",
-            "source": str(source),
+            "source": "https://youtu.be/test" if kind == "youtube" else str(source),
             "kind": kind,
             "status": status,
         }
@@ -84,6 +84,11 @@ class SyllaroTest(unittest.TestCase):
     def test_missing_token_marks_failure(self):
         self.job(kind="youtube")
         with patch.dict("os.environ", {}, clear=True):
+            out = self.root / "test"
+            out.mkdir()
+            (out / "audio.json").write_text(
+                json.dumps({"segments": [{"start": 0, "end": 2, "text": "Topic"}]})
+            )
             scout.work(self.root, self.config)
         result = json.loads((self.root / "test.json").read_text())
         self.assertEqual(result["status"], "failed")
@@ -116,15 +121,52 @@ class SyllaroTest(unittest.TestCase):
             with self.assertRaises(ValueError):
                 scout.validate_endpoint(url)
 
+    def test_ingestion_is_independent_and_cleans_media(self):
+        self.job(kind="youtube")
+        out = self.root / "test"
+        out.mkdir()
+        (out / "audio.wav").write_bytes(b"media")
+        (out / "audio.json").write_text(
+            json.dumps(
+                {
+                    "_syllaro_diarized": True,
+                    "segments": [
+                        {"start": 0, "end": 2, "text": "Evidence", "speaker": "SPEAKER_00"}
+                    ],
+                }
+            )
+        )
+        config = {k: v for k, v in self.config.items() if k != "local"}
+        with patch.object(scout, "chat", side_effect=AssertionError("No inference")):
+            scout.work(self.root, config, stage="ingest")
+        self.assertEqual(json.loads((self.root / "test.json").read_text())["status"], "transcribed")
+        self.assertFalse((out / "audio.wav").exists())
+        self.assertTrue((out / "audio.json").exists())
+        scout.work(self.root, self.config, stage="summarize")
+        self.assertEqual(json.loads((self.root / "test.json").read_text())["status"], "done")
+
+    def test_failed_ingestion_preserves_media(self):
+        self.job(kind="youtube")
+        out = self.root / "test"
+        out.mkdir()
+        (out / "audio.wav").write_bytes(b"media")
+        (out / "audio.json").write_text(json.dumps({"segments": []}))
+        with patch.dict("os.environ", {}, clear=True):
+            scout.work(self.root, self.config, stage="ingest")
+        self.assertEqual(json.loads((self.root / "test.json").read_text())["status"], "failed")
+        self.assertTrue((out / "audio.wav").exists())
+
     def test_cached_transcript_can_gain_speaker_labels(self):
         job = self.job(kind="youtube")
         out = self.root / "test"
         out.mkdir()
+        (out / "audio.wav").touch()
         raw = {"segments": [{"start": 0, "end": 2, "text": "Topic"}]}
         (out / "audio.json").write_text(json.dumps(raw))
 
         def fake_diarize(args, log, config):
-            self.assertEqual(args[1:3], ["-m", "syllaro.diarize"])
+            self.assertEqual(Path(args[1]).name, "diarize.py")
+            self.assertEqual(args[2:4], [str(out / "audio.wav"), str(out / "audio.json")])
             raw["segments"][0]["speaker"] = "SPEAKER_00"
             raw["_syllaro_diarized"] = True
             (out / "audio.json").write_text(json.dumps(raw))
@@ -145,7 +187,7 @@ class SyllaroTest(unittest.TestCase):
         config = {**self.config, "diarize": False}
 
         def fake_transcribe(args, log, config):
-            self.assertEqual(args[0], "whisperx")
+            self.assertEqual(args[1:4], ["-I", "-m", "whisperx"])
             self.assertEqual(args[args.index("--vad_method") + 1], "silero")
             self.assertNotIn("--hf_token", args)
             (out / "audio.json").write_text(
@@ -165,6 +207,44 @@ class SyllaroTest(unittest.TestCase):
             scout.fcntl.flock(lock, scout.fcntl.LOCK_EX | scout.fcntl.LOCK_NB)
             with self.assertRaisesRegex(RuntimeError, "already running"):
                 scout.work(self.root, self.config)
+
+    def test_partial_labels_require_diarization_and_missing_audio_fails_early(self):
+        job = self.job(kind="youtube")
+        out = self.root / "test"
+        out.mkdir()
+        (out / "audio.json").write_text(
+            json.dumps(
+                {
+                    "segments": [
+                        {"start": 0, "end": 1, "text": "Known", "speaker": "SPEAKER_00"},
+                        {"start": 1, "end": 2, "text": "Unknown"},
+                    ]
+                }
+            )
+        )
+        with (
+            patch.dict("os.environ", {"HF_TOKEN": "test"}),
+            patch.object(scout, "run_process") as run,
+        ):
+            with self.assertRaisesRegex(RuntimeError, "audio.wav is missing"):
+                scout.ingest(job, self.root, self.config)
+            run.assert_not_called()
+
+    def test_gpu_only_diarization_adds_wheel_libraries(self):
+        packages = self.root / "packages"
+        library = packages / "nvidia/cufft/lib"
+        library.mkdir(parents=True)
+        with (
+            patch.object(scout.sysconfig, "get_path", return_value=str(packages)),
+            patch.dict("os.environ", {"LD_LIBRARY_PATH": "/existing"}),
+            patch.object(scout.subprocess, "run") as run,
+        ):
+            scout.run_process(
+                ["test"],
+                self.root / "process.log",
+                {**self.config, "device": "cpu", "diarization_device": "cuda"},
+            )
+            self.assertEqual(run.call_args.kwargs["env"]["LD_LIBRARY_PATH"], f"{library}:/existing")
 
     def test_cuda_transcription_routes_legacy_precision(self):
         job = self.job(kind="youtube")

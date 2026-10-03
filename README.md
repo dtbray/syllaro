@@ -24,12 +24,22 @@ python -m unittest discover -s tests -v
 syllaro --help
 ```
 
+Run `make check` for lint, formatting validation, and tests; `make format`
+formats code, and `make build` builds the distributable wheel. Ruff is the
+single linter and formatter, pinned to the same version locally and in CI.
+CI checks the oldest and newest supported Python versions and builds a wheel.
+ML dependencies remain separate from these lightweight development checks.
+Configuration and persisted jobs have dependency-free typed schemas and runtime
+validation in `src/syllaro/schema.py`. Existing jobs need no migration.
+The validated GPU version snapshot and installation instructions are in
+[`requirements/`](requirements/README.md).
+
 Tests use a local mock inference server; no GPU, model weights, or API tokens
 are needed. The core CLI uses the standard library. For actual audio processing:
 
 ```bash
 pip install -r requirements-cpu.txt
-pip install -e '.[transcription]'
+pip install -c requirements-cpu.txt -e '.[transcription]'
 ```
 
 Install FFmpeg separately. Transcription dependencies and first-run model
@@ -65,7 +75,8 @@ labels without repeating transcription. Its token is read from the environment.
 
 Jobs and artifacts live under `~/.local/share/syllaro/`: raw audio, WhisperX
 JSON, timestamped transcript, partial summaries, final summary, and process log.
-Audio is retained for retries; retention cleanup is currently manual. Failed
+Downloaded media is removed after successful transcription and configured diarization.
+Failed ingestion retains media for retries. Failed
 jobs require `syllaro --config ... retry JOB_ID`. Interrupted jobs recover on
 the next worker run; an exclusive lock prevents concurrent workers.
 
@@ -92,3 +103,26 @@ terms of the GNU Affero General Public License as published by the Free
 Software Foundation, either version 3 of the License, or (at your option)
 any later version. See [LICENSE](LICENSE). No warranty is provided.
 Third-party dependencies retain their own licenses.
+
+## Separate ingestion and summaries
+
+`syllaro --config CONFIG ingest --limit 5` processes pending jobs without contacting
+an inference server. Successful jobs become `transcribed`; timestamped text and
+WhisperX speaker/word JSON are retained, and downloaded media is deleted.
+`syllaro --config CONFIG summarize --limit 5` consumes ready transcripts using each
+job’s selected profile. Schedule this command when the workstation is available.
+Summary failures retain transcripts; `retry JOB_ID` returns them to `transcribed`.
+Both stages share an exclusive lock and recover interrupted work. The original
+`work` command still executes both stages for pending jobs.
+
+Example user-systemd units live in `examples/systemd/`. The summary timer is
+an example only: configure the workstation tunnel/model and choose the schedule
+before enabling it. No API fallback or workstation wake-up is performed.
+
+Container targets and one-shot Compose workers are available; see
+[container setup](docs/containers.md) and [related projects](docs/related-projects.md).
+
+CPU installs must keep `-c requirements-cpu.txt` on subsequent dependency
+updates to preserve the CPU wheel pins. Automated summaries record the selected
+inference profile; the first-video test’s `assistant` provider was recorded
+manually when its briefing was written, not produced by the inference worker.

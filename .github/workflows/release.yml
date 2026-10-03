@@ -1,0 +1,72 @@
+name: Release
+
+on:
+  push:
+    tags: ['v*.*.*']
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing SemVer tag to release
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ inputs.tag || github.ref_name }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    env:
+      RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: ${{ inputs.tag || github.ref }}
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
+        with:
+          python-version: '3.13'
+      - name: Verify release identity
+        run: |
+          python - <<'PY'
+          import os, re, tomllib
+          from pathlib import Path
+          tag = os.environ['RELEASE_TAG']
+          version = tomllib.loads(Path('pyproject.toml').read_text())['project']['version']
+          if not re.fullmatch(r'v\d+\.\d+\.\d+', tag) or tag != 'v' + version:
+              raise SystemExit('Release tag must match package SemVer')
+          PY
+      - run: python -m pip install -e '.[dev,release]'
+      - run: ruff check . && ruff format --check .
+      - run: python -m unittest discover -s tests -v
+      - run: python -m build
+      - run: python -m twine check dist/*.tar.gz dist/*.whl
+      - name: Smoke-test installed wheel
+        run: |
+          python -m venv /tmp/syllaro-wheel
+          /tmp/syllaro-wheel/bin/pip install --no-deps dist/*.whl
+          cd /tmp
+          test "$(/tmp/syllaro-wheel/bin/syllaro --version)" = "${RELEASE_TAG#v}"
+          /tmp/syllaro-wheel/bin/syllaro --help
+      - name: Describe and audit core runtime
+        run: |
+          python -m pip install cyclonedx-bom pip-audit
+          cyclonedx-py environment /tmp/syllaro-wheel/bin/python --output-format JSON --output-file dist/syllaro-core-sbom.cdx.json
+          pip-audit --path /tmp/syllaro-wheel/lib/python3.13/site-packages --progress-spinner off
+      - name: Include GPU pins and checksums
+        run: |
+          cp requirements/pascal-py313.lock.txt dist/
+          cd dist
+          sha256sum *.whl *.tar.gz *.json *.txt > SHA256SUMS
+      - name: Publish GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
+            gh release upload "$RELEASE_TAG" dist/* --clobber
+          else
+            gh release create "$RELEASE_TAG" dist/* --verify-tag --generate-notes --title "Syllaro $RELEASE_TAG"
+          fi

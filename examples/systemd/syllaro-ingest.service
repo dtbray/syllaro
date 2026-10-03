@@ -1,0 +1,11 @@
+[Unit]
+Description=Syllaro local transcription and diarization
+
+[Service]
+Type=oneshot
+WorkingDirectory=%h/agents/syllaro
+Environment=PATH=%h/agents/syllaro/.venv-gpu/bin:/usr/local/bin:/usr/bin:/bin
+EnvironmentFile=%h/.config/syllaro/secrets.env
+ExecStart=%h/agents/syllaro/.venv-gpu/bin/syllaro --config %h/.config/syllaro/config.json ingest --limit 5
+TimeoutStartSec=infinity
+UMask=0077

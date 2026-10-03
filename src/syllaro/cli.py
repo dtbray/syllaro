@@ -13,8 +13,11 @@ import sysconfig
 import time
 import urllib.request
 import uuid
+from importlib.metadata import version
 from pathlib import Path
 from urllib.parse import urlparse
+
+from syllaro.schema import Config, Job, Profile, Stage, validate_config, validate_job
 
 
 def write_json(path, value):
@@ -41,7 +44,7 @@ class NoRedirect(urllib.request.HTTPRedirectHandler):
         )
 
 
-def chat(profile, text, config):
+def chat(profile: Profile, text: str, config: Config) -> str:
     validate_endpoint(profile["base_url"])
     payload = {
         "model": profile["model"],
@@ -113,12 +116,14 @@ def run_process(args, log, config):
     env = os.environ.copy()
     env["OMP_NUM_THREADS"] = str(config["cpu_threads"])
     env["MKL_NUM_THREADS"] = str(config["cpu_threads"])
-    if config.get("device", "cpu") == "cuda":
-        packages = Path(sysconfig.get_path("purelib"))
-        libraries = [
-            packages / "nvidia" / name / "lib" for name in ("cublas", "cudnn", "cuda_runtime")
-        ]
-        paths = [str(p) for p in libraries if p.is_dir()]
+    if "cuda" in (config.get("device", "cpu"), config.get("diarization_device", "cpu")):
+        libraries = {
+            p
+            for kind in ("purelib", "platlib")
+            for p in Path(sysconfig.get_path(kind)).glob("nvidia/*/lib")
+            if p.is_dir()
+        }
+        paths = sorted(str(p) for p in libraries)
         if env.get("LD_LIBRARY_PATH"):
             paths.append(env["LD_LIBRARY_PATH"])
         env["LD_LIBRARY_PATH"] = ":".join(paths)
@@ -133,11 +138,9 @@ def run_process(args, log, config):
         )
 
 
-def process(job, root, config):
+def ingest(job: Job, root: Path, config: Config) -> str:
     out = root / job["id"]
     out.mkdir(exist_ok=True)
-    profile = config[job["profile"]]
-    validate_endpoint(profile["base_url"])
     if job["kind"] == "transcript":
         text = Path(job["source"]).read_text()
         (out / "transcript.txt").write_text(text)
@@ -148,11 +151,7 @@ def process(job, root, config):
         # Cache downloaded audio and transcripts across summary retries.
         transcript = out / "audio.json"
         if not transcript.exists():
-            if config["diarize"] and not os.environ.get("HF_TOKEN"):
-                raise RuntimeError(
-                    "HF_TOKEN required for local diarization; accept community-1 model terms first"
-                )
-            for tool in ("yt-dlp", "ffmpeg", "whisperx"):
+            for tool in ("yt-dlp", "ffmpeg"):
                 if not shutil.which(tool):
                     raise RuntimeError(f"Missing dependency: {tool}")
             audio = out / "audio.wav"
@@ -161,6 +160,7 @@ def process(job, root, config):
                     [
                         "yt-dlp",
                         "--no-playlist",
+                        "--write-info-json",
                         "--extract-audio",
                         "--audio-format",
                         "wav",
@@ -173,6 +173,9 @@ def process(job, root, config):
                     config,
                 )
             args = [
+                sys.executable,
+                "-I",
+                "-m",
                 "whisperx",
                 str(audio),
                 "--model",
@@ -182,7 +185,7 @@ def process(job, root, config):
                 "--compute_type",
                 config.get("compute_type", "int8"),
                 "--batch_size",
-                "1",
+                str(config.get("batch_size", 1)),
                 "--vad_method",
                 "silero",
                 "--threads",
@@ -192,20 +195,26 @@ def process(job, root, config):
                 "--output_dir",
                 str(out),
             ]
+            if config.get("language"):
+                args += ["--language", config["language"]]
             run_process(args, out / "process.log", config)
         data = json.loads(transcript.read_text())
         if config["diarize"] and not (
-            data.get("_syllaro_diarized") or any(s.get("speaker") for s in data["segments"])
+            data.get("_syllaro_diarized")
+            or (data["segments"] and all(s.get("speaker") for s in data["segments"]))
         ):
             if not os.environ.get("HF_TOKEN"):
                 raise RuntimeError(
                     "HF_TOKEN required to add speaker labels to cached transcription"
                 )
             diarization_device = config.get("diarization_device", device)
+            if not (out / "audio.wav").is_file():
+                raise RuntimeError(
+                    "Cached transcription needs diarization but audio.wav is missing"
+                )
             diarization_args = [
                 sys.executable,
-                "-m",
-                "syllaro.diarize",
+                str(Path(__file__).with_name("diarize.py")),
                 str(out / "audio.wav"),
                 str(transcript),
                 "--threads",
@@ -213,8 +222,7 @@ def process(job, root, config):
                 "--device",
                 diarization_device,
             ]
-            if diarization_device == "cuda" or "diarization_batch_size" in config:
-                diarization_args += ["--batch-size", str(config.get("diarization_batch_size", 4))]
+            diarization_args += ["--batch-size", str(config.get("diarization_batch_size", 4))]
             run_process(
                 diarization_args,
                 out / "process.log",
@@ -229,30 +237,79 @@ def process(job, root, config):
         (out / "transcript.txt").write_text(text + "\n")
     if not text.strip():
         raise RuntimeError("Transcript is empty")
+    for artifact in (out / "transcript.txt", out / "audio.json"):
+        if artifact.exists():
+            with artifact.open("rb") as stream:
+                os.fsync(stream.fileno())
+    descriptor = os.open(out, os.O_RDONLY | os.O_DIRECTORY)
+    try:
+        os.fsync(descriptor)
+    finally:
+        os.close(descriptor)
+    # Delete only downloaded media after successful transcription and diarization.
+    for media in out.glob("audio.*"):
+        if media.name not in ("audio.json", "audio.info.json") and media.is_file():
+            media.unlink()
+    return str(out)
+
+
+def process(job: Job, root: Path, config: Config, stage: Stage = "all") -> str:
+    out = root / job["id"]
+    if stage != "summarize":
+        ingest(job, root, config)
+    if stage == "ingest":
+        return str(out)
+    text = (out / "transcript.txt").read_text()
+    if not text.strip():
+        raise RuntimeError("Transcript is empty")
+    if job["profile"] not in config:
+        raise ValueError(f"Missing inference profile: {job['profile']}")
+    profile = config[job["profile"]]
+    validate_endpoint(profile["base_url"])
     result = summarize(text, profile, config, out)
     (out / "summary.md").write_text(f"Source: {job['source']}\n\n{result}\n")
     return str(out)
 
 
-def work(root, config):
+def work(root, config, stage="all", limit=None):
     root.mkdir(parents=True, exist_ok=True)
     with (root / "worker.lock").open("w") as lock:
         try:
             fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
-        except BlockingIOError:
-            raise RuntimeError("A worker is already running")
+        except BlockingIOError as error:
+            raise RuntimeError("A worker is already running") from error
         jobs = sorted(root.glob("*.json"))
         # Recover interrupted jobs only while holding the exclusive worker lock.
+        completed = 0
         for path in jobs:
             job = json.loads(path.read_text())
-            if job["status"] not in ("pending", "running"):
+            if not isinstance(job, dict) or not {"id", "source", "status"}.issubset(job):
                 continue
-            job.update(status="running", started=time.time(), error=None)
+            try:
+                job = validate_job(job, path.stem)
+            except ValueError as error:
+                print(json.dumps({"queue_file": path.name, "error": str(error)}), flush=True)
+                continue
+            eligible = (
+                ("transcribed", "summarizing") if stage == "summarize" else ("pending", "running")
+            )
+            if job["status"] not in eligible:
+                continue
+            if limit is not None and completed >= limit:
+                break
+            completed += 1
+            job.update(
+                status="summarizing" if stage == "summarize" else "running",
+                stage=stage,
+                started=time.time(),
+                error=None,
+            )
             write_json(path, job)
             try:
-                job["output"] = process(job, root, config)
-                job["summary_provider"] = job["profile"]
-                job["status"] = "done"
+                job["output"] = process(job, root, config, stage)
+                if stage != "ingest":
+                    job["summary_provider"] = job["profile"]
+                job["status"] = "transcribed" if stage == "ingest" else "done"
             except Exception as error:
                 job.update(status="failed", error=str(error))
             job["finished"] = time.time()
@@ -266,18 +323,21 @@ def work(root, config):
 def main():
     os.umask(0o077)
     parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--version", action="version", version=version("syllaro"))
     parser.add_argument("--config", type=Path, required=True)
     sub = parser.add_subparsers(dest="command", required=True)
     submit = sub.add_parser("submit")
     submit.add_argument("source")
     submit.add_argument("--transcript", action="store_true")
     submit.add_argument("--profile", choices=["local", "workstation"], default="local")
-    sub.add_parser("work")
+    for command in ("work", "ingest", "summarize"):
+        worker = sub.add_parser(command)
+        worker.add_argument("--limit", type=int)
     sub.add_parser("status")
     retry = sub.add_parser("retry")
     retry.add_argument("id")
     args = parser.parse_args()
-    config = json.loads(args.config.read_text())
+    config = validate_config(json.loads(args.config.read_text()))
     root = Path(config["data_dir"]).expanduser().resolve()
     root.mkdir(parents=True, exist_ok=True)
     if args.command == "submit":
@@ -300,24 +360,31 @@ def main():
             "status": "pending",
             "created": time.time(),
         }
-        write_json(root / f"{ident}.json", job)
+        write_json(root / f"{ident}.json", validate_job(job, ident))
         print(ident)
-    elif args.command == "work":
-        work(root, config)
+    elif args.command in ("work", "ingest", "summarize"):
+        if args.limit is not None and args.limit < 1:
+            parser.error("--limit must be positive")
+        work(root, config, "all" if args.command == "work" else args.command, args.limit)
     elif args.command == "retry":
         if Path(args.id).name != args.id or not args.id:
             parser.error("Invalid job ID")
         with (root / "worker.lock").open("w") as lock:
             fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
             path = root / f"{args.id}.json"
-            job = json.loads(path.read_text())
+            job = validate_job(json.loads(path.read_text()), args.id)
             if job["status"] != "failed":
                 parser.error("Only failed jobs can be retried")
-            job.update(status="pending", error=None)
+            job.update(
+                status="transcribed" if job.get("stage") == "summarize" else "pending", error=None
+            )
             write_json(path, job)
     else:
         for path in sorted(root.glob("*.json")):
             job = json.loads(path.read_text())
+            if not isinstance(job, dict) or not {"id", "source", "status"}.issubset(job):
+                continue
+            job = validate_job(job, path.stem)
             print(
                 json.dumps(
                     {

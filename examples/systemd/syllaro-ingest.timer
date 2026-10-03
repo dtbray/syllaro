@@ -1,0 +1,10 @@
+[Unit]
+Description=Syllaro serial ingestion queue polling
+
+[Timer]
+OnBootSec=5min
+OnUnitInactiveSec=5min
+Unit=syllaro-ingest.service
+
+[Install]
+WantedBy=timers.target

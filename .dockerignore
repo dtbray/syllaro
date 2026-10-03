@@ -1,0 +1,11 @@
+*
+!Dockerfile
+!pyproject.toml
+!README.md
+!LICENSE
+!src/
+!src/**
+!requirements/
+!requirements/pascal-py313.lock.txt
+**/__pycache__/
+**/*.pyc

@@ -22,7 +22,7 @@ python3 -m venv .venv-gpu
 . .venv-gpu/bin/activate
 pip install -r requirements-pascal.txt
 pip install -e '.[transcription,dev]' 'ctranslate2==4.8.2'
-cp examples/config.pascal.json ~/.config/syllaro/config.json
+cp examples/config.pascal.json ~/.config/syllaro/config.pascal.json
 ```
 
 The pinned stack is PyTorch 2.8.0 with CUDA 12.6 and cuDNN 9.10.2.21.
@@ -74,7 +74,7 @@ The full 17:51 test video then completed its GPU audio pipeline in 204.33s
 | Diarization | Approximately 16m35s | 102.65s |
 | Total audio processing | Approximately 24m | 3m24s |
 
-Both GPU stage durations include process startup. The GPU run specified English
+Both GPU stage durations include process startup. The GPU run manually passed `--language en`
 instead of repeating language detection, reused downloaded audio and model
 weights, and used smaller diarization batches. This is roughly 7× faster for
 this sample, not a controlled throughput guarantee. Downloads, setup, and
@@ -92,3 +92,9 @@ out-of-memory failures occurred.
 
 These are native host measurements, not container validation. Docker GPU
 runtime/toolkit setup is a separate deployment step.
+
+The CLI now supports `language` (omit for automatic detection), `batch_size`
+(default 1), and `diarization_batch_size` (default 4 on either device). Keep
+CPU and Pascal configs at separate paths. Check sustained thermal throttling
+with `nvidia-smi -q -d PERFORMANCE,TEMPERATURE`; improve airflow and remeasure
+throughput if throttling is active.
