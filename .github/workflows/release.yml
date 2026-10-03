@@ -54,12 +54,12 @@ jobs:
           /tmp/syllaro-wheel/bin/syllaro --help
       - name: Describe and audit core runtime
         run: |
-          python -m pip install cyclonedx-bom pip-audit
           cyclonedx-py environment /tmp/syllaro-wheel/bin/python --output-format JSON --output-file dist/syllaro-core-sbom.cdx.json
           pip-audit --path /tmp/syllaro-wheel/lib/python3.13/site-packages --progress-spinner off
       - name: Include GPU pins and checksums
         run: |
           cp requirements/pascal-py313.lock.txt dist/
+          cp requirements/pascal-py313.hashes.txt dist/
           cd dist
           sha256sum *.whl *.tar.gz *.json *.txt > SHA256SUMS
       - name: Publish GitHub release

@@ -16,7 +16,7 @@ dependencies = []
 [project.optional-dependencies]
 transcription = ["whisperx==3.8.6", "pyannote-audio==4.0.7", "yt-dlp==2026.8.19"]
 dev = ["ruff==0.16.10"]
-release = ["build>=1,<2", "twine>=6,<7", "cyclonedx-bom>=5,<8", "pip-audit>=2.7,<3"]
+release = ["build==1.6.1", "twine==6.2.0", "cyclonedx-bom==7.5.0", "pip-audit==2.10.1"]
 
 [project.scripts]
 syllaro = "syllaro.cli:entrypoint"

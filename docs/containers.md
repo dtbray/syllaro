@@ -47,7 +47,8 @@ docker compose --profile summary run --rm summarize
 
 These files do not replace the running native ingestion timer automatically.
 Validate GPU transcription and diarization in the container before switching
-that timer. NVIDIA container runtime configuration and GPU media validation
+that timer. The integrity lock is consumed using pip --require-hashes. NVIDIA container
+runtime configuration and GPU media validation
 are still outstanding on this host.
 
 ## Checks completed

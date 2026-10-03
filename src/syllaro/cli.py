@@ -17,24 +17,44 @@ from importlib.metadata import version
 from pathlib import Path
 from urllib.parse import urlparse
 
-from syllaro.schema import Config, Job, Profile, Stage, validate_config, validate_job
+from syllaro.schema import (
+    Config,
+    Job,
+    Profile,
+    Stage,
+    validate_config,
+    validate_endpoint,
+    validate_job,
+)
 
 
 def write_json(path, value):
     tmp = path.with_suffix(".tmp")
-    tmp.write_text(json.dumps(value, indent=2) + "\n")
+    with tmp.open("w") as stream:
+        stream.write(json.dumps(value, indent=2) + "\n")
+        stream.flush()
+        os.fsync(stream.fileno())
     tmp.replace(path)
+    sync_directory(path.parent)
 
 
-def validate_endpoint(url):
-    # Remote workstation inference is deliberately reached through a local tunnel.
-    parsed = urlparse(url)
-    if parsed.scheme != "http" or parsed.hostname not in ("127.0.0.1", "localhost", "::1"):
-        raise ValueError(
-            "Inference endpoints must be HTTP loopback URLs; use an SSH tunnel for the workstation"
-        )
-    if parsed.username or parsed.password or parsed.query or parsed.fragment:
-        raise ValueError("Inference endpoint must not contain credentials, queries, or fragments")
+def sync_directory(path):
+    descriptor = os.open(path, os.O_RDONLY | os.O_DIRECTORY)
+    try:
+        os.fsync(descriptor)
+    finally:
+        os.close(descriptor)
+
+
+def read_job(path):
+    try:
+        job = json.loads(path.read_text())
+        if not isinstance(job, dict) or "id" not in job:
+            return None
+        return validate_job(job, path.stem)
+    except (OSError, ValueError) as error:
+        print(json.dumps({"queue_file": path.name, "error": str(error)}), flush=True)
+        return None
 
 
 class NoRedirect(urllib.request.HTTPRedirectHandler):
@@ -199,6 +219,8 @@ def ingest(job: Job, root: Path, config: Config) -> str:
                 args += ["--language", config["language"]]
             run_process(args, out / "process.log", config)
         data = json.loads(transcript.read_text())
+        if not isinstance(data, dict) or not data.get("segments"):
+            raise RuntimeError("Transcript is empty or has no segments")
         if config["diarize"] and not (
             data.get("_syllaro_diarized")
             or (data["segments"] and all(s.get("speaker") for s in data["segments"]))
@@ -222,7 +244,11 @@ def ingest(job: Job, root: Path, config: Config) -> str:
                 "--device",
                 diarization_device,
             ]
-            diarization_args += ["--batch-size", str(config.get("diarization_batch_size", 4))]
+            default_batch = 4 if diarization_device == "cuda" else 1
+            diarization_args += [
+                "--batch-size",
+                str(config.get("diarization_batch_size", default_batch)),
+            ]
             run_process(
                 diarization_args,
                 out / "process.log",
@@ -239,13 +265,10 @@ def ingest(job: Job, root: Path, config: Config) -> str:
         raise RuntimeError("Transcript is empty")
     for artifact in (out / "transcript.txt", out / "audio.json"):
         if artifact.exists():
-            with artifact.open("rb") as stream:
+            with artifact.open("r+b") as stream:
                 os.fsync(stream.fileno())
-    descriptor = os.open(out, os.O_RDONLY | os.O_DIRECTORY)
-    try:
-        os.fsync(descriptor)
-    finally:
-        os.close(descriptor)
+    sync_directory(out)
+    sync_directory(root)
     # Delete only downloaded media after successful transcription and diarization.
     for media in out.glob("audio.*"):
         if media.name not in ("audio.json", "audio.info.json") and media.is_file():
@@ -282,31 +305,33 @@ def work(root, config, stage="all", limit=None):
         # Recover interrupted jobs only while holding the exclusive worker lock.
         completed = 0
         for path in jobs:
-            job = json.loads(path.read_text())
-            if not isinstance(job, dict) or not {"id", "source", "status"}.issubset(job):
+            job = read_job(path)
+            if job is None:
                 continue
-            try:
-                job = validate_job(job, path.stem)
-            except ValueError as error:
-                print(json.dumps({"queue_file": path.name, "error": str(error)}), flush=True)
-                continue
-            eligible = (
-                ("transcribed", "summarizing") if stage == "summarize" else ("pending", "running")
-            )
+            ready = ("transcribed", "summarizing")
+            eligible = ready if stage == "summarize" else ("pending", "running")
+            if stage == "all":
+                eligible += ready
             if job["status"] not in eligible:
                 continue
             if limit is not None and completed >= limit:
                 break
             completed += 1
+            effective_stage = "summarize" if stage == "all" and job["status"] in ready else stage
             job.update(
-                status="summarizing" if stage == "summarize" else "running",
-                stage=stage,
+                status="summarizing" if effective_stage == "summarize" else "running",
+                stage=effective_stage,
                 started=time.time(),
                 error=None,
             )
             write_json(path, job)
             try:
-                job["output"] = process(job, root, config, stage)
+                if effective_stage == "all":
+                    job["output"] = process(job, root, config, "ingest")
+                    job.update(status="summarizing", stage="summarize")
+                    write_json(path, job)
+                    effective_stage = "summarize"
+                job["output"] = process(job, root, config, effective_stage)
                 if stage != "ingest":
                     job["summary_provider"] = job["profile"]
                 job["status"] = "transcribed" if stage == "ingest" else "done"
@@ -381,10 +406,9 @@ def main():
             write_json(path, job)
     else:
         for path in sorted(root.glob("*.json")):
-            job = json.loads(path.read_text())
-            if not isinstance(job, dict) or not {"id", "source", "status"}.issubset(job):
+            job = read_job(path)
+            if job is None:
                 continue
-            job = validate_job(job, path.stem)
             print(
                 json.dumps(
                     {

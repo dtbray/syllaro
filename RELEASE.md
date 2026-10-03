@@ -7,7 +7,7 @@ may ship in a minor release and must be identified in the changelog.
 Inspired by HaloCLI's tag-driven GitHub release workflow: build a wheel and
 source distribution, check metadata, generate an SBOM, audit dependencies, and
 publish installable assets. No package-upload token is required. The SBOM/audit
-cover the lightweight core runtime; the GPU snapshot is a separate dependency
+cover the lightweight core runtime; the GPU version/hash snapshot is a separate dependency
 surface and is included as a release asset, not represented as audited by the
 core environment scan.
 

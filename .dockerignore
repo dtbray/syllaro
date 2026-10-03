@@ -7,5 +7,6 @@
 !src/**
 !requirements/
 !requirements/pascal-py313.lock.txt
+!requirements/pascal-py313.hashes.txt
 **/__pycache__/
 **/*.pyc

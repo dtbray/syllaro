@@ -142,5 +142,83 @@
     "url": "https://github.com/dtbray/syllaro/pull/2#discussion_r4170688546",
     "path": "docs/gpu-pascal.md",
     "disposition": "Addressed in consolidated release branch; see code, config, dependency pins, regression tests and docs."
+  },
+  {
+    "id": 4171595890,
+    "url": "https://github.com/dtbray/syllaro/pull/3#discussion_r4171595890",
+    "path": "src/syllaro/cli.py",
+    "disposition": "Verified python -I -m whisperx --help exits 0 in the pinned GPU venv; module entrypoint exists."
+  },
+  {
+    "id": 4171595892,
+    "url": "https://github.com/dtbray/syllaro/pull/3#discussion_r4171595892",
+    "path": "src/syllaro/cli.py",
+    "disposition": "Addressed through queue loading/recovery, schema validation, fsync, CPU batching, default inference profile, or release-tool constraints; regression checks added."
+  },
+  {
+    "id": 4171595893,
+    "url": "https://github.com/dtbray/syllaro/pull/3#discussion_r4171595893",
+    "path": "src/syllaro/cli.py",
+    "disposition": "Addressed through queue loading/recovery, schema validation, fsync, CPU batching, default inference profile, or release-tool constraints; regression checks added."
+  },
+  {
+    "id": 4171595898,
+    "url": "https://github.com/dtbray/syllaro/pull/3#discussion_r4171595898",
+    "path": "src/syllaro/cli.py",
+    "disposition": "Addressed through queue loading/recovery, schema validation, fsync, CPU batching, default inference profile, or release-tool constraints; regression checks added."
+  },
+  {
+    "id": 4171595902,
+    "url": "https://github.com/dtbray/syllaro/pull/3#discussion_r4171595902",
+    "path": "src/syllaro/cli.py",
+    "disposition": "Addressed through queue loading/recovery, schema validation, fsync, CPU batching, default inference profile, or release-tool constraints; regression checks added."
+  },
+  {
+    "id": 4171595904,
+    "url": "https://github.com/dtbray/syllaro/pull/3#discussion_r4171595904",
+    "path": "src/syllaro/cli.py",
+    "disposition": "Addressed through queue loading/recovery, schema validation, fsync, CPU batching, default inference profile, or release-tool constraints; regression checks added."
+  },
+  {
+    "id": 4171595908,
+    "url": "https://github.com/dtbray/syllaro/pull/3#discussion_r4171595908",
+    "path": "src/syllaro/cli.py",
+    "disposition": "Addressed through queue loading/recovery, schema validation, fsync, CPU batching, default inference profile, or release-tool constraints; regression checks added."
+  },
+  {
+    "id": 4171595912,
+    "url": "https://github.com/dtbray/syllaro/pull/3#discussion_r4171595912",
+    "path": "src/syllaro/schema.py",
+    "disposition": "Addressed through queue loading/recovery, schema validation, fsync, CPU batching, default inference profile, or release-tool constraints; regression checks added."
+  },
+  {
+    "id": 4171595914,
+    "url": "https://github.com/dtbray/syllaro/pull/3#discussion_r4171595914",
+    "path": "src/syllaro/schema.py",
+    "disposition": "Addressed through queue loading/recovery, schema validation, fsync, CPU batching, default inference profile, or release-tool constraints; regression checks added."
+  },
+  {
+    "id": 4171595918,
+    "url": "https://github.com/dtbray/syllaro/pull/3#discussion_r4171595918",
+    "path": "src/syllaro/schema.py",
+    "disposition": "Addressed through queue loading/recovery, schema validation, fsync, CPU batching, default inference profile, or release-tool constraints; regression checks added."
+  },
+  {
+    "id": 4171595921,
+    "url": "https://github.com/dtbray/syllaro/pull/3#discussion_r4171595921",
+    "path": "Dockerfile",
+    "disposition": "Added official-index artifact hashes and --require-hashes installation; exact plain TorchCodec selected."
+  },
+  {
+    "id": 4171595924,
+    "url": "https://github.com/dtbray/syllaro/pull/3#discussion_r4171595924",
+    "path": ".github/workflows/release.yml",
+    "disposition": "Addressed through queue loading/recovery, schema validation, fsync, CPU batching, default inference profile, or release-tool constraints; regression checks added."
+  },
+  {
+    "id": 4171595928,
+    "url": "https://github.com/dtbray/syllaro/pull/3#discussion_r4171595928",
+    "path": "examples/container/config.json",
+    "disposition": "Addressed through queue loading/recovery, schema validation, fsync, CPU batching, default inference profile, or release-tool constraints; regression checks added."
   }
 ]

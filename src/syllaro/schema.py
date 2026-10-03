@@ -61,18 +61,36 @@ def text(value, field):
 
 
 def number(value, field, minimum=0, integer=False):
+    try:
+        finite = math.isfinite(value) if isinstance(value, (int, float)) else False
+    except OverflowError:
+        finite = False
     if (
         isinstance(value, bool)
         or not isinstance(value, int if integer else (int, float))
-        or not math.isfinite(value)
+        or not finite
         or value <= minimum
     ):
         raise ValueError(f"{field} must be {'an integer' if integer else 'a number'} > {minimum}")
 
 
+def validate_endpoint(url):
+    # Remote workstation inference is deliberately reached through a local tunnel.
+    parsed = urlparse(url)
+    if parsed.scheme != "http" or parsed.hostname not in ("127.0.0.1", "localhost", "::1"):
+        raise ValueError(
+            "Inference endpoints must be HTTP loopback URLs; use an SSH tunnel for the workstation"
+        )
+    if parsed.username or parsed.password or parsed.query or parsed.fragment:
+        raise ValueError("Inference endpoint must not contain credentials, queries, or fragments")
+
+
 def validate_config(value: object) -> Config:
     if not isinstance(value, dict):
         raise ValueError("Configuration must be a JSON object")
+    unknown = set(value) - set(Config.__annotations__)
+    if unknown:
+        raise ValueError("Unknown configuration keys: " + ", ".join(sorted(unknown)))
     for field in ("data_dir", "whisper_model"):
         text(value.get(field), field)
     for field in ("cpu_threads", "chunk_chars"):
@@ -104,12 +122,16 @@ def validate_config(value: object) -> Config:
             raise ValueError(f"{name} must be an inference profile object")
         for field in ("base_url", "model"):
             text(profile.get(field), f"{name}.{field}")
+        validate_endpoint(profile["base_url"])
     return cast(Config, value)
 
 
 def validate_job(value: object, expected_id: str | None = None) -> Job:
     if not isinstance(value, dict):
         raise ValueError("Job must be a JSON object")
+    missing = set(JobRequired.__annotations__) - set(value)
+    if missing:
+        raise ValueError("Missing job fields: " + ", ".join(sorted(missing)))
     ident = value.get("id")
     if not isinstance(ident, str) or not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_-]*", ident):
         raise ValueError("Job id must be a safe single path component")

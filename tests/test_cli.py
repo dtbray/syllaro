@@ -208,6 +208,18 @@ class SyllaroTest(unittest.TestCase):
             with self.assertRaisesRegex(RuntimeError, "already running"):
                 scout.work(self.root, self.config)
 
+    def test_corrupt_queue_does_not_block_ready_transcript(self):
+        self.job(status="transcribed")
+        out = self.root / "test"
+        out.mkdir()
+        (out / "transcript.txt").write_text("[0.0s] SPEAKER_00: Evidence")
+        (self.root / "000-corrupt.json").write_text("{")
+        (self.root / "001-invalid.json").write_text(json.dumps({"id": "001-invalid"}))
+        scout.work(self.root, self.config)
+        self.assertEqual(json.loads((self.root / "test.json").read_text())["status"], "done")
+        self.assertIsNone(scout.read_job(self.root / "000-corrupt.json"))
+        self.assertIsNone(scout.read_job(self.root / "001-invalid.json"))
+
     def test_partial_labels_require_diarization_and_missing_audio_fails_early(self):
         job = self.job(kind="youtube")
         out = self.root / "test"

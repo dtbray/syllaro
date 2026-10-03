@@ -60,3 +60,14 @@ class SchemaTest(unittest.TestCase):
         job = self.job()
         job["summary_provider"] = "assistant"
         self.assertEqual(validate_job(job)["summary_provider"], "assistant")
+
+    def test_config_typos_and_huge_numbers_rejected(self):
+        for extra in (
+            {"devcie": "cuda"},
+            {"cpu_threads": 10**400},
+            {"local": {"base_url": "https://example.com/v1", "model": "test"}},
+        ):
+            config = self.config()
+            config.update(extra)
+            with self.assertRaises(ValueError):
+                validate_config(config)

@@ -94,7 +94,7 @@ These are native host measurements, not container validation. Docker GPU
 runtime/toolkit setup is a separate deployment step.
 
 The CLI now supports `language` (omit for automatic detection), `batch_size`
-(default 1), and `diarization_batch_size` (default 4 on either device). Keep
+(default 1), and `diarization_batch_size` (default 4 on CUDA and 1 on CPU). Keep
 CPU and Pascal configs at separate paths. Check sustained thermal throttling
 with `nvidia-smi -q -d PERFORMANCE,TEMPERATURE`; improve airflow and remeasure
 throughput if throttling is active.
