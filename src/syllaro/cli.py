@@ -45,6 +45,7 @@ def sync_directory(path):
     except OSError as error:
         raise RuntimeError(f"Cannot open directory for sync {path}: {error}") from error
     failure = None
+    operation = "sync"
     try:
         os.fsync(descriptor)
     except OSError as error:
@@ -55,8 +56,9 @@ def sync_directory(path):
         except OSError as error:
             if failure is None:
                 failure = error
+                operation = "close"
     if failure is not None:
-        raise RuntimeError(f"Cannot sync directory {path}: {failure}") from failure
+        raise RuntimeError(f"Cannot {operation} directory {path}: {failure}") from failure
 
 
 def read_job(path):

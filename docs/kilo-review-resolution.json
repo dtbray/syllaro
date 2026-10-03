@@ -272,7 +272,7 @@
   {
     "id": 4171675324,
     "url": "https://github.com/dtbray/syllaro/pull/3#discussion_r4171675324",
-    "path": "src/syllaro/cli.py",
+    "path": "tests/test_cli.py",
     "disposition": "The read-only artifact regression is skipped for uid 0 so root cannot produce false permission coverage; normal local and GitHub CI run non-root."
   },
   {
@@ -292,5 +292,23 @@
     "url": "https://github.com/dtbray/syllaro/pull/3#discussion_r4171712479",
     "path": "tests/test_cli.py",
     "disposition": "The os.open mock now raises only for the target directory and delegates all other calls."
+  },
+  {
+    "id": 4171744899,
+    "url": "https://github.com/dtbray/syllaro/pull/3#discussion_r4171744899",
+    "path": "tests/test_cli.py",
+    "disposition": "Added close-only failure regression checking operation, path and errno."
+  },
+  {
+    "id": 4171744904,
+    "url": "https://github.com/dtbray/syllaro/pull/3#discussion_r4171744904",
+    "path": "src/syllaro/cli.py",
+    "disposition": "Distinguish close failure from sync failure in the operator diagnostic."
+  },
+  {
+    "id": 4171744908,
+    "url": "https://github.com/dtbray/syllaro/pull/3#discussion_r4171744908",
+    "path": "docs/kilo-review-resolution.json",
+    "disposition": "Corrected the referenced review comment path to tests/test_cli.py."
   }
 ]

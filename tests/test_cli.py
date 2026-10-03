@@ -296,6 +296,19 @@ class SyllaroTest(unittest.TestCase):
         self.assertIn(str(self.root), str(raised.exception))
         self.assertIn("Errno 5", str(raised.exception))
 
+    def test_directory_close_failure_identifies_operation_path_and_errno(self):
+        original_close = scout.os.close
+
+        def failed_close(descriptor):
+            original_close(descriptor)
+            raise OSError(9, "Bad file descriptor")
+
+        with patch.object(scout.os, "close", side_effect=failed_close):
+            with self.assertRaises(RuntimeError) as raised:
+                scout.sync_directory(self.root)
+        self.assertIn(f"Cannot close directory {self.root}", str(raised.exception))
+        self.assertIn("Errno 9", str(raised.exception))
+
     def test_artifact_sync_failure_retains_media_and_identifies_path(self):
         job = self.job(kind="youtube")
         out = self.root / "test"
