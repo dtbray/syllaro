@@ -27,6 +27,10 @@ docker compose --profile gpu run --rm ingest
 ```
 
 Containers run as the selected UID/GID with a read-only root filesystem.
+Queue/output directories must be readable and writable by that UID and support
+directory fsync. Durability failures retain downloaded media rather than silently
+discarding the guarantee. Config endpoint validation checks URL syntax/policy,
+not server availability; offline inference does not prevent ingestion.
 Create writable data/cache directories with matching ownership; change
 SYLLARO_DATA_DIR and SYLLARO_CACHE_DIR to use existing directories. A private
 container config can be mounted with SYLLARO_CONFIG_DIR; data_dir must be /data.

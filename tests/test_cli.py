@@ -242,6 +242,27 @@ class SyllaroTest(unittest.TestCase):
                 scout.ingest(job, self.root, self.config)
             run.assert_not_called()
 
+    def test_readonly_cached_transcript_still_allows_safe_media_cleanup(self):
+        job = self.job(kind="youtube")
+        out = self.root / "test"
+        out.mkdir()
+        (out / "audio.wav").write_bytes(b"media")
+        artifact = out / "audio.json"
+        artifact.write_text(
+            json.dumps(
+                {
+                    "_syllaro_diarized": True,
+                    "segments": [
+                        {"start": 0, "end": 1, "text": "Evidence", "speaker": "SPEAKER_00"}
+                    ],
+                }
+            )
+        )
+        artifact.chmod(0o400)
+        scout.ingest(job, self.root, self.config)
+        self.assertFalse((out / "audio.wav").exists())
+        self.assertEqual(artifact.stat().st_mode & 0o777, 0o400)
+
     def test_gpu_only_diarization_adds_wheel_libraries(self):
         packages = self.root / "packages"
         library = packages / "nvidia/cufft/lib"

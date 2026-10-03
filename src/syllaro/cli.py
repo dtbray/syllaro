@@ -29,6 +29,7 @@ from syllaro.schema import (
 
 
 def write_json(path, value):
+    sync_directory(path.parent)
     tmp = path.with_suffix(".tmp")
     with tmp.open("w") as stream:
         stream.write(json.dumps(value, indent=2) + "\n")
@@ -39,7 +40,10 @@ def write_json(path, value):
 
 
 def sync_directory(path):
-    descriptor = os.open(path, os.O_RDONLY | os.O_DIRECTORY)
+    try:
+        descriptor = os.open(path, os.O_RDONLY | os.O_DIRECTORY)
+    except OSError as error:
+        raise RuntimeError("Queue/output directories must be readable and support fsync") from error
     try:
         os.fsync(descriptor)
     finally:
@@ -265,7 +269,14 @@ def ingest(job: Job, root: Path, config: Config) -> str:
         raise RuntimeError("Transcript is empty")
     for artifact in (out / "transcript.txt", out / "audio.json"):
         if artifact.exists():
-            with artifact.open("r+b") as stream:
+            try:
+                stream = artifact.open("r+b")
+            except PermissionError:
+                if not sys.platform.startswith("linux"):
+                    raise
+                # Linux permits fsync on readable cached files restored read-only.
+                stream = artifact.open("rb")
+            with stream:
                 os.fsync(stream.fileno())
     sync_directory(out)
     sync_directory(root)

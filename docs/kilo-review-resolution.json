@@ -220,5 +220,35 @@
     "url": "https://github.com/dtbray/syllaro/pull/3#discussion_r4171595928",
     "path": "examples/container/config.json",
     "disposition": "Addressed through queue loading/recovery, schema validation, fsync, CPU batching, default inference profile, or release-tool constraints; regression checks added."
+  },
+  {
+    "id": 4171639260,
+    "url": "https://github.com/dtbray/syllaro/pull/3#discussion_r4171639260",
+    "path": "Dockerfile",
+    "disposition": "Verified packaging SpecifierSet: ===0.7.0 accepts plain 0.7.0 and rejects 0.7.0+cu126. Successful hash-verified download selects the plain PyPI artifact."
+  },
+  {
+    "id": 4171639263,
+    "url": "https://github.com/dtbray/syllaro/pull/3#discussion_r4171639263",
+    "path": "src/syllaro/schema.py",
+    "disposition": "Validation is syntactic, not a server availability check; loopback-only policy was already required. Documented earlier validation timing in changelog; profile-less ingestion remains supported."
+  },
+  {
+    "id": 4171639265,
+    "url": "https://github.com/dtbray/syllaro/pull/3#discussion_r4171639265",
+    "path": "src/syllaro/schema.py",
+    "disposition": "Documented strict unknown-key validation as a pre-1.0 compatibility change. TypedDict annotation inheritance is intentional."
+  },
+  {
+    "id": 4171639267,
+    "url": "https://github.com/dtbray/syllaro/pull/3#discussion_r4171639267",
+    "path": "src/syllaro/cli.py",
+    "disposition": "Preserved strict directory durability rather than silently deleting media after a sync failure. Required readable/writable directories are documented; failures report an actionable error."
+  },
+  {
+    "id": 4171639274,
+    "url": "https://github.com/dtbray/syllaro/pull/3#discussion_r4171639274",
+    "path": "src/syllaro/cli.py",
+    "disposition": "Readable cached artifacts restored read-only can use Linux read-only-descriptor fsync; added regression coverage. File-data fsync is preserved; directory fsync alone does not flush file contents."
   }
 ]

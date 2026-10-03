@@ -10,6 +10,13 @@
   CUDA library discovery, and interpreter selection for ML subprocesses.
 - Add tag-driven release artifacts, checksums, SBOM, and dependency audit.
 
+Compatibility changes before 1.0: unknown configuration keys are now rejected;
+configured inference URL syntax and the existing loopback-only policy are checked
+at startup, even for ingestion/status. No inference connection is made by those
+commands, and ingestion-only configs may omit inference profiles. Queue/output
+directories must be readable/writable and support directory fsync for durable
+state and safe media cleanup.
+
 ## 0.1.0
 
 - Initial local-first YouTube transcription and briefing prototype.
