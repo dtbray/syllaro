@@ -44,13 +44,19 @@ def sync_directory(path):
         descriptor = os.open(path, os.O_RDONLY | os.O_DIRECTORY)
     except OSError as error:
         raise RuntimeError(f"Cannot open directory for sync {path}: {error}") from error
+    failure = None
     try:
-        try:
-            os.fsync(descriptor)
-        except OSError as error:
-            raise RuntimeError(f"Cannot sync directory {path}: {error}") from error
+        os.fsync(descriptor)
+    except OSError as error:
+        failure = error
     finally:
-        os.close(descriptor)
+        try:
+            os.close(descriptor)
+        except OSError as error:
+            if failure is None:
+                failure = error
+    if failure is not None:
+        raise RuntimeError(f"Cannot sync directory {path}: {failure}") from failure
 
 
 def read_job(path):

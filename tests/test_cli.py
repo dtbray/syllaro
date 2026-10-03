@@ -267,11 +267,57 @@ class SyllaroTest(unittest.TestCase):
         self.assertEqual(artifact.stat().st_mode & 0o777, 0o400)
 
     def test_directory_sync_error_identifies_path_and_errno(self):
-        with patch.object(scout.os, "open", side_effect=PermissionError(13, "Permission denied")):
+        original_open = scout.os.open
+
+        def denied(path, *args, **kwargs):
+            if path == self.root:
+                raise PermissionError(13, "Permission denied")
+            return original_open(path, *args, **kwargs)
+
+        with patch.object(scout.os, "open", side_effect=denied):
             with self.assertRaises(RuntimeError) as raised:
                 scout.sync_directory(self.root)
         self.assertIn(str(self.root), str(raised.exception))
         self.assertIn("Errno 13", str(raised.exception))
+
+    def test_directory_sync_preserves_fsync_failure_when_close_also_fails(self):
+        original_close = scout.os.close
+
+        def failed_close(descriptor):
+            original_close(descriptor)
+            raise OSError(9, "Bad file descriptor")
+
+        with (
+            patch.object(scout.os, "fsync", side_effect=OSError(5, "Input/output error")),
+            patch.object(scout.os, "close", side_effect=failed_close),
+        ):
+            with self.assertRaises(RuntimeError) as raised:
+                scout.sync_directory(self.root)
+        self.assertIn(str(self.root), str(raised.exception))
+        self.assertIn("Errno 5", str(raised.exception))
+
+    def test_artifact_sync_failure_retains_media_and_identifies_path(self):
+        job = self.job(kind="youtube")
+        out = self.root / "test"
+        out.mkdir()
+        (out / "audio.wav").write_bytes(b"media")
+        (out / "transcript.txt").write_text("Evidence")
+        (out / "audio.json").write_text(
+            json.dumps(
+                {
+                    "_syllaro_diarized": True,
+                    "segments": [
+                        {"start": 0, "end": 1, "text": "Evidence", "speaker": "SPEAKER_00"}
+                    ],
+                }
+            )
+        )
+        with patch.object(scout.os, "fsync", side_effect=OSError(5, "Input/output error")):
+            with self.assertRaises(RuntimeError) as raised:
+                scout.ingest(job, self.root, self.config)
+        self.assertIn(str(out / "transcript.txt"), str(raised.exception))
+        self.assertIn("Errno 5", str(raised.exception))
+        self.assertTrue((out / "audio.wav").exists())
 
     def test_gpu_only_diarization_adds_wheel_libraries(self):
         packages = self.root / "packages"

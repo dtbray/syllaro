@@ -274,5 +274,23 @@
     "url": "https://github.com/dtbray/syllaro/pull/3#discussion_r4171675324",
     "path": "src/syllaro/cli.py",
     "disposition": "The read-only artifact regression is skipped for uid 0 so root cannot produce false permission coverage; normal local and GitHub CI run non-root."
+  },
+  {
+    "id": 4171712468,
+    "url": "https://github.com/dtbray/syllaro/pull/3#discussion_r4171712468",
+    "path": "src/syllaro/cli.py",
+    "disposition": "Preserve fsync errors when close also fails, and report close-only errors with directory context."
+  },
+  {
+    "id": 4171712475,
+    "url": "https://github.com/dtbray/syllaro/pull/3#discussion_r4171712475",
+    "path": "tests/test_cli.py",
+    "disposition": "Regression tests cover directory fsync failure plus artifact failure and media retention."
+  },
+  {
+    "id": 4171712479,
+    "url": "https://github.com/dtbray/syllaro/pull/3#discussion_r4171712479",
+    "path": "tests/test_cli.py",
+    "disposition": "The os.open mock now raises only for the target directory and delegates all other calls."
   }
 ]
