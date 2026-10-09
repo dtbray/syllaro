@@ -155,6 +155,20 @@ existing subscription preferences. Malformed documents leave the registry unchan
 invalid entries are reported as skipped with a nonzero command exit rather than
 claiming a complete import. [Details](docs/podcast-subscriptions.md).
 
-This is subscription management only. Episode polling/downloads and RSS media-job
+This is subscription management only. Episode audio downloads and RSS media-job
 support remain separate work; imported subscriptions do not start background fetching,
 transcription, diarization or summarization.
+
+## Metadata-first episode screening
+
+```sh
+syllaro --config ~/.config/syllaro/config.json screen-feeds
+syllaro --config ~/.config/syllaro/config.json screening --decision process --limit 20
+syllaro --config ~/.config/syllaro/config.json screening --query "automation"
+```
+
+This reads RSS/Atom titles and show notes without audio downloads or model calls.
+Local keyword rules favor actionable technical/DIY interests; thin notes require
+review. Recommendations and manual overrides are stored privately and never enqueue
+work automatically. Fetch failures remain visible, and oversized feeds are explicitly
+marked when sampled. [Screening details and overrides](docs/metadata-screening.md).

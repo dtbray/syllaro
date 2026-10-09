@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Add bounded RSS/Atom metadata screening, show-note searches, ranked local-rule
+  recommendations, private caching, and persistent feed/episode overrides. Screening
+  never downloads enclosures, queues processing jobs, or calls inference models.
+
 - Add private, durable OPML subscription imports and URL-redacted feed listings.
   Importing subscriptions does not fetch feeds or queue episodes.
 

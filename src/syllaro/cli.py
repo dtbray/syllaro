@@ -416,6 +416,25 @@ def main():
     opml = sub.add_parser("import-opml", help="Import subscriptions only; do not fetch episodes")
     opml.add_argument("path", type=Path)
     sub.add_parser("feeds", help="List subscriptions without revealing feed URLs")
+    screen = sub.add_parser(
+        "screen-feeds", help="Fetch and rank metadata only; never download audio"
+    )
+    screen.add_argument("--profile", type=Path)
+    screen.add_argument("--feed-limit", type=int, default=20)
+    screen.add_argument("--episodes-per-feed", type=int, default=5)
+    screen.add_argument("--timeout", type=float, default=15)
+    screen.add_argument("--refresh", action="store_true")
+    review = sub.add_parser(
+        "screening", help="Review metadata recommendations or search show notes"
+    )
+    review.add_argument("--scope", choices=["feed", "episode"], default="episode")
+    review.add_argument("--limit", type=int, default=20)
+    review.add_argument("--decision", choices=["process", "skip", "review"])
+    review.add_argument("--query")
+    preference = sub.add_parser("screening-override", help="Persist a manual metadata decision")
+    preference.add_argument("id")
+    preference.add_argument("decision", choices=["process", "skip", "review", "auto"])
+    preference.add_argument("--scope", choices=["feed", "episode"], default="episode")
     sub.add_parser("status")
     retry = sub.add_parser("retry")
     retry.add_argument("id")
@@ -423,7 +442,36 @@ def main():
     config = validate_config(json.loads(args.config.read_text()))
     root = Path(config["data_dir"]).expanduser().resolve()
     root.mkdir(parents=True, exist_ok=True)
-    if args.command in ("import-opml", "feeds"):
+    if args.command in ("screen-feeds", "screening", "screening-override"):
+        from syllaro.screening import DEFAULT_PROFILE, override, ranked, scan, state_path
+
+        with state_path(root).with_name("screening.lock").open("w") as lock:
+            fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            if args.command == "screen-feeds":
+                profile = json.loads(args.profile.read_text()) if args.profile else DEFAULT_PROFILE
+                report = scan(
+                    root,
+                    profile,
+                    args.feed_limit,
+                    args.episodes_per_feed,
+                    args.timeout,
+                    args.refresh,
+                )
+                print(json.dumps(report), flush=True)
+                if report["failed"]:
+                    raise SystemExit(1)
+            elif args.command == "screening":
+                print(
+                    json.dumps(
+                        ranked(root, args.limit, args.decision, args.query, args.scope),
+                        ensure_ascii=False,
+                    ),
+                    flush=True,
+                )
+            else:
+                override(root, args.id, args.decision, args.scope)
+                print(json.dumps({"id": args.id, "decision": args.decision, "scope": args.scope}))
+    elif args.command in ("import-opml", "feeds"):
         from syllaro.feeds import import_opml, public_feeds
 
         with (root / "worker.lock").open("w") as lock:
