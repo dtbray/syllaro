@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Add an optional localhost FastAPI web adapter and Svelte 5 interface for existing
+  jobs, YouTube submission, artifact viewing and locked retries. CLI submission and
+  retry share the same queue operations; no worker or job-state migration is added.
+
 - Add `submit --audio` for local recordings through the existing transcription,
   diarization, recovery and durable cleanup stages. Original recordings stay intact.
   Persisted `audio` jobs require an updated Syllaro core; older readers reject them.

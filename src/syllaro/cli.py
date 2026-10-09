@@ -12,10 +12,8 @@ import sys
 import sysconfig
 import time
 import urllib.request
-import uuid
 from importlib.metadata import version
 from pathlib import Path
-from urllib.parse import urlparse
 
 from syllaro.schema import (
     Config,
@@ -604,47 +602,31 @@ def main():
             else:
                 print(json.dumps(public_feeds(root), ensure_ascii=False), flush=True)
     elif args.command == "submit":
-        source = args.source
-        if args.transcript or args.audio:
-            path = Path(source)
-            if args.audio and (path.is_symlink() or not path.is_file()):
-                parser.error("Audio source must be a regular local file")
-            source = str(path.resolve(strict=True))
-        elif urlparse(source).scheme not in ("https", "http") or urlparse(source).hostname not in (
-            "youtube.com",
-            "www.youtube.com",
-            "m.youtube.com",
-            "youtu.be",
-        ):
-            parser.error("Expected a YouTube URL, or use --transcript with a local text file")
-        ident = f"{time.time_ns()}-{uuid.uuid4().hex[:8]}"
-        job = {
-            "id": ident,
-            "source": source,
-            "kind": "transcript" if args.transcript else "audio" if args.audio else "youtube",
-            "profile": args.profile,
-            "status": "pending",
-            "created": time.time(),
-        }
-        write_json(root / f"{ident}.json", validate_job(job, ident))
-        print(ident)
+        from syllaro.services import submit_job
+
+        try:
+            job = submit_job(
+                root,
+                args.source,
+                "transcript" if args.transcript else "audio" if args.audio else "youtube",
+                args.profile,
+            )
+        except ValueError as error:
+            parser.error(str(error))
+        print(job["id"])
     elif args.command in ("work", "ingest", "summarize"):
         if args.limit is not None and args.limit < 1:
             parser.error("--limit must be positive")
         work(root, config, "all" if args.command == "work" else args.command, args.limit)
     elif args.command == "retry":
-        if Path(args.id).name != args.id or not args.id:
-            parser.error("Invalid job ID")
-        with (root / "worker.lock").open("w") as lock:
-            fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
-            path = root / f"{args.id}.json"
-            job = validate_job(json.loads(path.read_text()), args.id)
-            if job["status"] != "failed":
-                parser.error("Only failed jobs can be retried")
-            job.update(
-                status="transcribed" if job.get("stage") == "summarize" else "pending", error=None
-            )
-            write_json(path, job)
+        from syllaro.services import QueueError, retry_job
+
+        try:
+            retry_job(root, args.id)
+        except QueueError as error:
+            if error.code in ("invalid_id", "not_failed"):
+                parser.error(str(error))
+            raise
     else:
         for path in sorted(root.glob("*.json")):
             job = read_job(path)

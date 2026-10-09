@@ -183,3 +183,77 @@ Local keyword rules favor actionable technical/DIY interests; thin notes require
 review. Recommendations and manual overrides are stored privately and never enqueue
 work automatically. Fetch failures remain visible, and oversized feeds are explicitly
 marked when sampled. [Screening details and overrides](docs/metadata-screening.md).
+
+## Local web interface
+
+The optional Svelte 5 interface shows existing jobs, submits YouTube sources,
+views timestamped/speaker-labelled transcripts and sanitized Markdown briefings,
+and retries failed jobs using the existing worker lock. It polls every five seconds
+while pending/running/summarizing jobs exist and supports manual refresh. No worker
+is launched by HTTP requests; keep your existing `ingest`, `summarize`, or `work`
+service running. A worker processes a queue snapshot, so newly submitted jobs wait
+for its next invocation. Transcribed jobs can remain ready without summarization.
+
+Build and start from the repository root (Node 20.19+ or supported newer LTS,
+npm 9.5+):
+
+```bash
+python3.13 -m venv .venv-dashboard
+.venv-dashboard/bin/python -m pip install --require-hashes -r requirements/dashboard.lock.txt
+.venv-dashboard/bin/python -m pip install --no-deps -e .
+npm --prefix frontend ci
+npm --prefix frontend run check
+npm --prefix frontend run build
+.venv-dashboard/bin/syllaro-web --config ~/.config/syllaro/config.json
+```
+
+Open **http://127.0.0.1:8765**. FastAPI serves `frontend/dist` and the API in one
+process; Node is unnecessary after building. Run from the checkout root or provide
+`--frontend-dir /absolute/path/to/frontend/dist`. Assets are separate from the Python
+wheel; retain the built directory when installing the wheel elsewhere. The core
+CLI installation has no new runtime dependencies. `pip install '.[web]'` is an
+alternative optional runtime installation; the hashed web lock also supplies HTTPX
+for API tests. Keep this environment separate from active ML environments.
+
+For development, run the API command above in one terminal and
+`npm --prefix frontend run dev` in another. Open http://localhost:5173; Vite provides
+HMR and proxies `/api` to localhost:8765. Generate TypeScript contracts with
+`npm --prefix frontend run contracts` after API model changes. The generation uses
+synthetic queue configuration, never your private records.
+
+Additional queues must be explicitly configured by the server operator:
+
+```bash
+.venv-dashboard/bin/syllaro-web --config ~/.config/syllaro/config.json \
+  --queue rising-tide=~/.config/syllaro/rising-tide.json \
+  --queue podcast-audio=~/.config/syllaro/podcast-audio-pilot.json \
+  --queue publisher-transcripts=~/.config/syllaro/podcast-transcript-pilot.json
+```
+
+The API exposes `/api/v1/health`, `/jobs` (GET/POST), `/jobs/{id}`,
+`/jobs/{id}/transcript`, `/briefing`, `/action-items` (GET), and
+`/jobs/{id}/retry` (POST), all under `/api/v1`. Optional `queue=NAME` selects only
+configured queues. OpenAPI is available at `/openapi.json`. Invalid records are
+counted rather than silently presenting a complete list. Retry returns 423 while
+an existing worker owns the queue and 409 for jobs that are not failed.
+
+The server always binds to 127.0.0.1: it has no authentication and must not be
+exposed through a network-facing proxy. To view it on another machine, use an SSH
+loopback forward: `ssh -N -L 127.0.0.1:8765:127.0.0.1:8765 USER@SYLLARO_HOST`.
+Local browser writes must be same-origin. Artifacts are private data; Markdown is
+sanitized in the browser. There is no scheduling, worker administration, model
+configuration, audio playback, or transcript editing. Browser artifact reads are
+limited to 16 MiB. RSS subscription/screening administration remains in the CLI.
+
+Web checks (no GPU/model execution):
+
+```bash
+.venv-dashboard/bin/python -m unittest discover -s tests -p test_web.py -v
+npm --prefix frontend run check
+npm --prefix frontend run build
+# First browser-test setup only:
+cd frontend && npx playwright install chromium && npm test
+```
+
+The core test suite skips only optional HTTP tests if FastAPI/HTTPX are absent;
+shared queue-operation tests still run. Browser tests use synthetic mocked API data.

@@ -14,3 +14,9 @@ data/
 models/
 *.log
 .DS_Store
+
+# Optional web frontend build and test outputs
+frontend/node_modules/
+frontend/dist/
+frontend/test-results/
+frontend/playwright-report/
