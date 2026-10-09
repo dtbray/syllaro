@@ -62,5 +62,46 @@ The account list endpoint also appears in its
 [Android client](https://github.com/Automattic/pocket-casts-android/blob/main/modules/services/servers/src/main/java/au/com/shiftyjelly/pocketcasts/servers/sync/SyncService.kt),
 which now uses protobuf for some requests. This adapter targets the private web
 JSON interface; it reports incompatible responses instead of silently claiming
-complete synchronization. It does not implement account playback/history or
-bookmark import yet.
+complete synchronization. It reads recent listening history but does not modify playback or import bookmarks.
+
+## Completed episodes are excluded by default
+
+Each subscription sync also reads `/user/history` and merges positive completion
+evidence into private, durable `feeds/pocketcasts-listening.json`. The default
+screening list excludes episodes with `playingStatus == 3` (completed), including
+shows on your explicit priority list. Partially played episodes remain eligible;
+a percentage threshold is not applied. Archived/deleted flags do not mean heard.
+
+Matching uses the exact feed identity and media URL, with an exact feed, title,
+and publication timestamp fallback for changed media URLs. Titles are only
+whitespace-normalized and HTML-unescaped; there is no fuzzy title-only matching.
+The ledger stores hashed matching signatures rather than titles or media URLs.
+Missing matches mean unknown listening status, not confirmed unplayed. Refreshing
+RSS metadata does not remove completion evidence. A later history response that
+omits old episodes or marks an episode unplayed does not erase a known completion.
+
+The current web history endpoint returned only 100 recent entries in live tests;
+page/offset parameters did not retrieve older entries. Coverage is explicitly
+reported as `recent_history_only`. Older listens not already in the ledger may
+still appear; this is not an all-time history backfill. Subsequent syncs accumulate
+new completions. Failed history reads retain the ledger and return a nonzero sync
+exit, even if subscription merging succeeded. There is no background sync unless
+you arrange one explicitly.
+
+To inspect excluded episodes:
+
+```bash
+syllaro --config ~/.config/syllaro/config.json screening --include-listened
+syllaro --config ~/.config/syllaro/config.json screening --decision skip
+```
+
+An explicit episode-level `screening-override EPISODE_ID process` or `review`
+resurfaces that episode; a feed-level priority does not bypass the exclusion.
+`auto` restores default exclusion. Automatic rules for essential information or
+potential action items are deferred until defined; no inferred exception is applied.
+
+The persistent-history approach was informed by
+[DanEEStar/listening-history-deno](https://github.com/DanEEStar/listening-history-deno/blob/main/server/services/pocketCasts.ts).
+Its 70% playback threshold is not used. Pocket Casts' own
+[playing-status definitions](https://github.com/Automattic/pocket-casts-android/blob/main/modules/services/model/src/main/java/au/com/shiftyjelly/pocketcasts/models/type/EpisodePlayingStatus.kt)
+identify completed episodes as status 3.

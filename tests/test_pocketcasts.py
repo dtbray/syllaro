@@ -32,7 +32,15 @@ class PocketCastsTests(unittest.TestCase):
                     "c": "secret-invalid-url",
                 },
             }
-            client.request = Mock(side_effect=lambda ident=None: items if ident is None else export)
+            client.request = Mock(
+                side_effect=lambda ident=None, **kwargs: (
+                    {"episodes": []}
+                    if kwargs.get("history")
+                    else items
+                    if ident is None
+                    else export
+                )
+            )
             report = pocketcasts.sync(root, client)
             self.assertEqual(
                 (report["added"], report["skipped"], report["episodes_queued"]), (1, 1, 0)

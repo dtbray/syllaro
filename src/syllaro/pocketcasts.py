@@ -106,10 +106,11 @@ class Client:
         self.timeout = timeout
         self.opener = urllib.request.build_opener(urllib.request.ProxyHandler({}), NoRedirect())
 
-    def request(self, ident=None):
+    def request(self, ident=None, *, history=False):
         # Fixed hosts and endpoints only. Never send the account token to public metadata hosts.
         if ident is None:
-            url, data = API + "/user/podcast/list", b'{"v":1}'
+            url = API + ("/user/history" if history else "/user/podcast/list")
+            data = b'{"v":1}'
             headers = {"Authorization": "Bearer " + self.token}
         else:
             try:
@@ -172,6 +173,7 @@ class Client:
                 raise PocketCastsError("Invalid Pocket Casts feed export") from None
         if not isinstance(mapping, dict):
             raise PocketCastsError("Invalid Pocket Casts feed export")
+        self.podcast_feeds = {}
         records, errors, seen = [], [], set()
         for index, item in enumerate(items, 1):
             try:
@@ -183,6 +185,7 @@ class Client:
                 url = feed_url(url)
                 if not isinstance(title, str) or not title.strip():
                     raise PocketCastsError("Missing Pocket Casts subscription title")
+                self.podcast_feeds[item["uuid"]] = feed_id(url)
                 if url in seen:
                     continue
                 seen.add(url)
@@ -243,4 +246,20 @@ def sync(root, client):
     report = import_records(root, records, errors)
     report["source"] = "pocketcasts"
     report["account_writes"] = 0
+    from syllaro.listening import update
+
+    try:
+        history = client.request(history=True)
+        rows = history.get("episodes")
+        if not isinstance(rows, list) or len(rows) > 10000:
+            raise PocketCastsError("Invalid Pocket Casts listening history")
+        report["listening"] = update(root, rows, client.podcast_feeds)
+        report["listening_failed"] = False
+    except ValueError as error:
+        report["listening_failed"] = True
+        report["listening_error"] = (
+            str(error)
+            if isinstance(error, PocketCastsError)
+            else "Invalid listening evidence; retained previous state"
+        )
     return report

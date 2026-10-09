@@ -441,6 +441,11 @@ def main():
     review.add_argument("--limit", type=int, default=20)
     review.add_argument("--decision", choices=["process", "skip", "review"])
     review.add_argument("--query")
+    review.add_argument(
+        "--include-listened",
+        action="store_true",
+        help="Show completed episodes for explicit reconsideration",
+    )
     preference = sub.add_parser("screening-override", help="Persist a manual metadata decision")
     preference.add_argument("id")
     preference.add_argument("decision", choices=["process", "skip", "review", "auto"])
@@ -473,7 +478,14 @@ def main():
             elif args.command == "screening":
                 print(
                     json.dumps(
-                        ranked(root, args.limit, args.decision, args.query, args.scope),
+                        ranked(
+                            root,
+                            args.limit,
+                            args.decision,
+                            args.query,
+                            args.scope,
+                            args.include_listened,
+                        ),
                         ensure_ascii=False,
                     ),
                     flush=True,
@@ -510,7 +522,7 @@ def main():
                 fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
                 report = sync(root, client)
             print(json.dumps(report), flush=True)
-            if report["skipped"]:
+            if report["skipped"] or report["listening_failed"]:
                 raise SystemExit(1)
         except PocketCastsError as error:
             parser.exit(1, f"{error}\n")

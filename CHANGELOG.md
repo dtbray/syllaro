@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Exclude known completed Pocket Casts episodes from default RSS screening using
+  a private persistent listening ledger. Partial listens stay eligible; explicit
+  episode overrides can resurface completed episodes. History coverage is recent-only.
+
 - Add experimental read-only Pocket Casts subscription sync with in-memory
   secret-manager login/session credentials, redacted failures, and additive imports.
   Live account validation matched 376 existing RSS subscriptions; no audio is queued.

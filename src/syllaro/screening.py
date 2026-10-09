@@ -535,9 +535,16 @@ def save_state(root, state):
     path.chmod(0o600)
 
 
-def effective(state, record, scope):
+def effective(state, record, scope, completed=False):
     result = dict(record["classification"])
     override = state["overrides"][scope].get(record["id"])
+    if scope == "episode" and completed and not override:
+        result.update(
+            decision="skip",
+            rationale="Already completed in Pocket Casts",
+            listening_status="completed",
+        )
+        return result
     if scope == "episode" and not override:
         feed_override = state["overrides"]["feed"].get(record["feed_id"])
         if feed_override in ("skip", "review") or (
@@ -654,7 +661,7 @@ def scan(root, profile, feed_limit=20, episode_limit=5, timeout=15, refresh=Fals
     return report
 
 
-def ranked(root, limit=20, decision=None, query=None, scope="episode"):
+def ranked(root, limit=20, decision=None, query=None, scope="episode", include_listened=False):
     if (
         not 1 <= limit <= 10000
         or scope not in ("feed", "episode")
@@ -662,9 +669,25 @@ def ranked(root, limit=20, decision=None, query=None, scope="episode"):
     ):
         raise ValueError("Invalid review options")
     state = load_state(root)
+    from syllaro.listening import is_completed, load
+
+    listening = load(root)
+    completed_keys = set(listening["completed"])
+    completed_metadata = set(listening.get("completed_metadata", []))
     result = []
     for record in state[scope + "s"].values():
-        classification = effective(state, record, scope)
+        completed = scope == "episode" and is_completed(record, completed_keys, completed_metadata)
+        explicit = state["overrides"]["episode"].get(record["id"]) if scope == "episode" else None
+        if (
+            completed
+            and not include_listened
+            and decision != "skip"
+            and explicit not in ("process", "review")
+        ):
+            continue
+        classification = effective(state, record, scope, completed)
+        if scope == "episode":
+            classification["listening_status"] = "completed" if completed else "unknown"
         if decision and classification["decision"] != decision:
             continue
         if (
