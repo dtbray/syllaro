@@ -78,6 +78,10 @@ For an already-authorized local model snapshot, set the optional
 that model without requiring or passing `HF_TOKEN`; a missing directory fails
 rather than falling back to the Hub. See [AMD/ROCm setup](docs/gpu-rocm.md)
 for the isolated Pop!_OS workstation candidate and validation limits.
+That guide also documents the explicit `transformers` transcription backend,
+which loads an existing local model and can align on CPU while ASR and
+diarization use ROCm. The default remains WhisperX; backend failures retain
+media for retry instead of switching engines automatically.
 
 Jobs and artifacts live under `~/.local/share/syllaro/`: raw audio, WhisperX
 JSON, timestamped transcript, partial summaries, final summary, and process log.

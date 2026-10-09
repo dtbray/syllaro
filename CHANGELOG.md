@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Add an explicit local `transformers` transcription backend for PyTorch/ROCm
+  ASR, with independently placed WhisperX alignment. It requires a local model
+  directory, floating-point compute type, and explicit language. The default
+  WhisperX backend and existing job format remain unchanged.
+
 - Support an explicit absolute `diarization_model_path` for offline local models,
   without requiring or passing Hugging Face credentials. Existing Hub-backed
   configurations retain their token requirement.

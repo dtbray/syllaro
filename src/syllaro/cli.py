@@ -151,7 +151,11 @@ def run_process(args, log, config):
     env = os.environ.copy()
     env["OMP_NUM_THREADS"] = str(config["cpu_threads"])
     env["MKL_NUM_THREADS"] = str(config["cpu_threads"])
-    if "cuda" in (config.get("device", "cpu"), config.get("diarization_device", "cpu")):
+    if "cuda" in (
+        config.get("device", "cpu"),
+        config.get("diarization_device", "cpu"),
+        config.get("alignment_device", "cpu"),
+    ):
         libraries = {
             p
             for kind in ("purelib", "platlib")
@@ -232,6 +236,27 @@ def ingest(job: Job, root: Path, config: Config) -> str:
             ]
             if config.get("language"):
                 args += ["--language", config["language"]]
+            if config.get("transcription_backend", "whisperx") == "transformers":
+                args = [
+                    sys.executable,
+                    str(Path(__file__).with_name("transcribe.py")),
+                    str(audio),
+                    str(transcript),
+                    "--model-path",
+                    config["whisper_model"],
+                    "--device",
+                    device,
+                    "--alignment-device",
+                    config.get("alignment_device", "cpu"),
+                    "--compute-type",
+                    config["compute_type"],
+                    "--language",
+                    config["language"],
+                    "--batch-size",
+                    str(config.get("batch_size", 1)),
+                    "--threads",
+                    str(config["cpu_threads"]),
+                ]
             run_process(args, out / "process.log", config)
         data = json.loads(transcript.read_text())
         if not isinstance(data, dict) or not data.get("segments"):

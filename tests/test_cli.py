@@ -225,11 +225,62 @@ class SyllaroTest(unittest.TestCase):
         self.assertIn("SPEAKER_00", (out / "transcript.txt").read_text())
         self.assertFalse((out / "audio.wav").exists())
 
+    def test_explicit_transformers_backend_dispatches_local_helper(self):
+        job = self.job(kind="youtube")
+        out = self.root / "test"
+        out.mkdir()
+        (out / "audio.wav").touch()
+        config = {
+            **self.config,
+            "diarize": False,
+            "transcription_backend": "transformers",
+            "whisper_model": str(self.root),
+            "compute_type": "float16",
+            "language": "en",
+            "alignment_device": "cpu",
+            "device": "cuda",
+        }
+
+        def fake_transcribe(args, log, config):
+            self.assertEqual(Path(args[1]).name, "transcribe.py")
+            self.assertEqual(args[args.index("--model-path") + 1], str(self.root))
+            self.assertEqual(args[args.index("--alignment-device") + 1], "cpu")
+            (out / "audio.json").write_text(
+                json.dumps({"segments": [{"start": 0, "end": 2, "text": "Evidence"}]})
+            )
+
+        with (
+            patch.dict("os.environ", {}, clear=True),
+            patch.object(scout.shutil, "which", return_value="/fake"),
+            patch.object(scout, "run_process", side_effect=fake_transcribe) as run,
+        ):
+            scout.ingest(job, self.root, config)
+        self.assertEqual(run.call_count, 1)
+        self.assertFalse((out / "audio.wav").exists())
+
     def test_exclusive_worker_lock(self):
         with (self.root / "worker.lock").open("w") as lock:
             scout.fcntl.flock(lock, scout.fcntl.LOCK_EX | scout.fcntl.LOCK_NB)
             with self.assertRaisesRegex(RuntimeError, "already running"):
                 scout.work(self.root, self.config)
+
+    def test_missing_local_diarization_model_preserves_cached_media(self):
+        job = self.job(kind="youtube")
+        out = self.root / "test"
+        out.mkdir()
+        (out / "audio.wav").write_bytes(b"cached media")
+        (out / "audio.json").write_text(
+            json.dumps({"segments": [{"start": 0, "end": 2, "text": "Topic"}]})
+        )
+        config = {**self.config, "diarization_model_path": str(self.root / "missing-model")}
+        with (
+            patch.dict("os.environ", {}, clear=True),
+            patch.object(scout, "run_process") as run,
+        ):
+            with self.assertRaisesRegex(RuntimeError, "directory does not exist"):
+                scout.ingest(job, self.root, config)
+        run.assert_not_called()
+        self.assertEqual((out / "audio.wav").read_bytes(), b"cached media")
 
     def test_corrupt_queue_does_not_block_ready_transcript(self):
         self.job(status="transcribed")

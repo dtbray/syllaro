@@ -37,6 +37,8 @@ class Config(ConfigRequired, total=False):
     diarization_model_path: str
     batch_size: int
     language: str
+    transcription_backend: Literal["whisperx", "transformers"]
+    alignment_device: Literal["cpu", "cuda"]
 
 
 class JobRequired(TypedDict):
@@ -101,7 +103,7 @@ def validate_config(value: object) -> Config:
         number(value.get(field), field)
     if not isinstance(value.get("diarize"), bool):
         raise ValueError("diarize must be a boolean")
-    for field in ("device", "diarization_device"):
+    for field in ("device", "diarization_device", "alignment_device"):
         if field in value and value[field] not in ("cpu", "cuda"):
             raise ValueError(f"{field} must be cpu or cuda")
     if "compute_type" in value and value["compute_type"] not in (
@@ -120,6 +122,18 @@ def validate_config(value: object) -> Config:
         text(value["diarization_model_path"], "diarization_model_path")
         if not Path(value["diarization_model_path"]).is_absolute():
             raise ValueError("diarization_model_path must be an absolute local directory path")
+    backend = value.get("transcription_backend", "whisperx")
+    if backend not in ("whisperx", "transformers"):
+        raise ValueError("Unsupported transcription_backend")
+    if backend == "transformers":
+        if not Path(value["whisper_model"]).is_absolute():
+            raise ValueError("Transformers requires an absolute local whisper_model directory path")
+        if value.get("compute_type", "int8") not in ("float16", "float32"):
+            raise ValueError("Transformers requires float16 or float32 compute_type")
+        if not value.get("language"):
+            raise ValueError("Transformers requires an explicit language")
+    elif "alignment_device" in value:
+        raise ValueError("alignment_device requires the transformers transcription backend")
     for name in ("local", "workstation"):
         if name not in value:
             continue  # Ingestion does not require inference profiles.

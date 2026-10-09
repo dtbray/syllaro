@@ -34,12 +34,32 @@ class SchemaTest(unittest.TestCase):
             ("diarization_batch_size", 0),
             ("diarization_model_path", "relative/model"),
             ("diarization_model_path", ""),
+            ("transcription_backend", "automatic"),
+            ("alignment_device", "cuda"),
         ):
             with self.subTest(field=field):
                 config = self.config()
                 config[field] = value
                 with self.assertRaises(ValueError):
                     validate_config(config)
+
+    def test_transformers_requires_local_model_float_compute_and_language(self):
+        config = {
+            **self.config(),
+            "transcription_backend": "transformers",
+            "whisper_model": "/models/whisper-small",
+            "compute_type": "float16",
+            "language": "en",
+            "alignment_device": "cpu",
+        }
+        self.assertEqual(validate_config(config), config)
+        for field, value in (
+            ("whisper_model", "small"),
+            ("compute_type", "int8"),
+            ("language", ""),
+        ):
+            with self.subTest(field=field), self.assertRaises(ValueError):
+                validate_config({**config, field: value})
 
     def test_job_identity_and_source_boundaries(self):
         for field, value in (

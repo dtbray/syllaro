@@ -18,15 +18,61 @@ The machine configuration, package hashes, observed Python dependency snapshot,
 activation script, and benchmark evidence are recorded in the Homelab repository
 under `ops/hardware/pop-os/`. This is candidate evidence, not a production claim.
 
-For local diarization without moving credentials, configure:
+Extended validation rejected CTranslate2 HIP on this host: long float16 and
+float32 runs failed with illegal GPU access/instructions, and int8 emitted
+degenerate repeated text despite a successful exit. Keep CTranslate2 HIP ASR out
+of production on this host. PyTorch/ROCm ASR
+is an explicit backend, not an automatic fallback.
+
+## Validated longer route
+
+Select `transcription_backend: "transformers"` explicitly to use PyTorch for
+ASR, then WhisperX for alignment and the existing separate diarization helper.
+The ASR model must be an absolute local Transformers model directory; it is
+loaded with `local_files_only=True`. Set `compute_type` to float16 or float32
+and provide `language`. The default backend remains WhisperX. `alignment_device`
+is supported only with Transformers and defaults to CPU, releasing the ASR GPU
+model before loading alignment. No remote inference or automatic fallback is added.
+
+The 1049.35-second public AMI ES2004a meeting completed with small-model GPU ASR
+in 111.845 seconds, CPU alignment in 73.412 seconds, and GPU diarization in
+174.391 seconds: 362.26 seconds including process overhead. It produced 2,218
+aligned words and five generic speaker clusters. No WER/DER evaluation was
+performed; the cluster count does not establish accurate speaker separation.
+Peak sampled CPU temperature was 71.75°C, GPU edge 66°C and hotspot 88°C.
+Global VRAM peaked at 14.67 GB with the existing Qwen server still loaded.
+
+The Transformers pipeline uses 30-second overlapping chunks, which upstream
+marks experimental for sequence-to-sequence models. Retain that quality caveat
+and review timestamps, silence hallucinations, and speaker attribution. An
+application error, missing timestamp, or empty output retains audio for retry.
+
+A workstation configuration fragment for this route is:
 
 ```json
 {
+  "transcription_backend": "transformers",
+  "whisper_model": "/home/thomasbray/.local/share/syllaro-rocm/hf-cache/hub/models--openai--whisper-small/snapshots/973afd24965f72e36ca33b3055d56a652f456b4d",
   "device": "cuda",
   "compute_type": "float16",
   "batch_size": 1,
   "cpu_threads": 4,
   "language": "en",
+  "alignment_device": "cpu",
+  "diarization_device": "cuda",
+  "diarization_batch_size": 1,
+  "diarization_model_path": "/home/thomasbray/.local/share/syllaro-rocm/models/community-1"
+}
+```
+
+This is a fragment for a complete config with an isolated data directory. The
+public model revision is pinned above. The queue and completed laptop jobs have
+not been migrated.
+
+For local diarization without moving credentials, configure:
+
+```json
+{
   "diarization_device": "cuda",
   "diarization_batch_size": 1,
   "diarization_model_path": "/home/thomasbray/.local/share/syllaro-rocm/models/community-1"
