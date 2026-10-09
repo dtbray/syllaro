@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Add read-only year-based Pocket Casts history backfill with count verification
+  and separate playback-state checks, extending listened-episode exclusions
+  beyond the web player’s 100 recent history entries.
+
 - Exclude known completed Pocket Casts episodes from default RSS screening using
   a private persistent listening ledger. Partial listens stay eligible; explicit
   episode overrides can resurface completed episodes. History coverage is recent-only.

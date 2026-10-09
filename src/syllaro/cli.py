@@ -426,6 +426,11 @@ def main():
     auth.add_argument("--token-file", type=Path)
     auth.add_argument("--firefox-profile", type=Path)
     pocket.add_argument("--timeout", type=float, default=15)
+    pocket.add_argument(
+        "--history-since-year",
+        type=int,
+        help="Backfill year-based history and verify completion states",
+    )
     screen = sub.add_parser(
         "screen-feeds", help="Fetch and rank metadata only; never download audio"
     )
@@ -520,7 +525,7 @@ def main():
             client = Client(token, args.timeout)
             with (root / "worker.lock").open("w") as lock:
                 fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
-                report = sync(root, client)
+                report = sync(root, client, args.history_since_year)
             print(json.dumps(report), flush=True)
             if report["skipped"] or report["listening_failed"]:
                 raise SystemExit(1)

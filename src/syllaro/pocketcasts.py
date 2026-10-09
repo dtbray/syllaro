@@ -106,11 +106,23 @@ class Client:
         self.timeout = timeout
         self.opener = urllib.request.build_opener(urllib.request.ProxyHandler({}), NoRedirect())
 
-    def request(self, ident=None, *, history=False):
+    def request(self, ident=None, *, history=False, year=None, count=False, podcast=None):
         # Fixed hosts and endpoints only. Never send the account token to public metadata hosts.
         if ident is None:
             url = API + ("/user/history" if history else "/user/podcast/list")
             data = b'{"v":1}'
+            if year is not None:
+                if type(year) is not int or not 2004 <= year <= 2100 or type(count) is not bool:
+                    raise PocketCastsError("Invalid Pocket Casts history year")
+                url = API + "/history/year"
+                data = json.dumps({"version": "1", "year": year, "count": count}).encode()
+            elif podcast is not None:
+                try:
+                    podcast = str(uuid.UUID(podcast))
+                except (ValueError, TypeError, AttributeError):
+                    raise PocketCastsError("Invalid Pocket Casts podcast identity") from None
+                url = API + "/user/podcast/episodes"
+                data = json.dumps({"uuid": podcast}).encode()
             headers = {"Authorization": "Bearer " + self.token}
         else:
             try:
@@ -241,7 +253,14 @@ def login(email, password, timeout=15):
         ) from None
 
 
-def sync(root, client):
+def sync(root, client, history_since_year=None):
+    if history_since_year is not None:
+        from syllaro.listening import validate_backfill_year
+
+        try:
+            validate_backfill_year(history_since_year)
+        except ValueError:
+            raise PocketCastsError("Invalid listening backfill year") from None
     records, errors = client.subscriptions()
     report = import_records(root, records, errors)
     report["source"] = "pocketcasts"
@@ -254,7 +273,14 @@ def sync(root, client):
         if not isinstance(rows, list) or len(rows) > 10000:
             raise PocketCastsError("Invalid Pocket Casts listening history")
         report["listening"] = update(root, rows, client.podcast_feeds)
-        report["listening_failed"] = False
+        if history_since_year is not None:
+            from syllaro.listening import backfill
+
+            report["history_backfill"] = backfill(root, client, history_since_year)
+        report["listening_failed"] = bool(
+            report.get("history_backfill", {}).get("failed_podcasts")
+            or report.get("history_backfill", {}).get("missing_playback_states")
+        )
     except ValueError as error:
         report["listening_failed"] = True
         report["listening_error"] = (

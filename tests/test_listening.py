@@ -145,3 +145,86 @@ class ListeningTests(unittest.TestCase):
                     episode, set(state["completed"]), set(state["completed_metadata"])
                 )
             )
+
+    def test_year_backfill_verifies_states_without_assuming_history_means_completed(self):
+        from datetime import datetime, timezone
+        from unittest.mock import Mock
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            feed = feeds.feed_id("https://example.org/feed")
+            year = datetime.now(timezone.utc).year  # noqa: UP017 - Preserve core wheel Python 3.10 compatibility.
+            rows = [
+                {
+                    "action": 1,
+                    "podcast": "show",
+                    "episode": "done",
+                    "url": "https://example.org/done.mp3",
+                },
+                {
+                    "action": 1,
+                    "podcast": "show",
+                    "episode": "partial",
+                    "url": "https://example.org/partial.mp3",
+                },
+            ]
+
+            def request(**kwargs):
+                if kwargs.get("podcast"):
+                    return {
+                        "episodes": [
+                            {"uuid": "done", "playingStatus": 3},
+                            {"uuid": "partial", "playingStatus": 2},
+                        ]
+                    }
+                if kwargs.get("count"):
+                    return {"count": len(rows)}
+                return {"history": {"changes": rows}}
+
+            client = Mock(podcast_feeds={"show": feed}, request=Mock(side_effect=request))
+            result = listening.backfill(root, client, year)
+            self.assertEqual(result["interactions_received"], 2)
+            self.assertEqual(result["completed_received"], 1)
+            self.assertEqual(result["partial_or_unplayed"], 1)
+            self.assertEqual(result["failed_podcasts"], 0)
+            state = listening.load(root)
+            self.assertEqual(state["backfill_since_year"], year)
+            self.assertEqual(state["coverage"], "year_backfill")
+            self.assertTrue(
+                listening.is_completed(
+                    {"feed_id": feed, "enclosure": "https://example.org/done.mp3"},
+                    set(state["completed"]),
+                )
+            )
+            listening.update(root, [], {})
+            self.assertEqual(listening.load(root)["coverage"], "year_backfill")
+
+    def test_incomplete_year_fails_without_erasing_evidence_and_failed_states_are_partial(self):
+        from datetime import datetime, timezone
+        from unittest.mock import Mock
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            feed = feeds.feed_id("https://example.org/feed")
+            listening.update(
+                root,
+                [{"podcastUuid": "show", "playingStatus": 3, "url": "https://example.org/old.mp3"}],
+                {"show": feed},
+            )
+            before = listening.load(root)
+            year = datetime.now(timezone.utc).year  # noqa: UP017 - Preserve core wheel Python 3.10 compatibility.
+            client = Mock(podcast_feeds={"show": feed})
+            client.request.side_effect = [{"count": 2}, {"history": {"changes": []}}]
+            with self.assertRaisesRegex(ValueError, "Incomplete"):
+                listening.backfill(root, client, year)
+            self.assertEqual(listening.load(root), before)
+            rows = [{"action": 1, "podcast": "show", "episode": "one"}]
+            client.request.side_effect = [
+                {"count": 1},
+                {"history": {"changes": rows}},
+                ValueError("secret server data"),
+            ]
+            result = listening.backfill(root, client, year)
+            self.assertEqual(result["failed_podcasts"], 1)
+            self.assertEqual(result["coverage"], "year_backfill_partial")
+            self.assertEqual(listening.load(root)["completed"], before["completed"])

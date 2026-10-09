@@ -81,10 +81,9 @@ RSS metadata does not remove completion evidence. A later history response that
 omits old episodes or marks an episode unplayed does not erase a known completion.
 
 The current web history endpoint returned only 100 recent entries in live tests;
-page/offset parameters did not retrieve older entries. Coverage is explicitly
-reported as `recent_history_only`. Older listens not already in the ledger may
-still appear; this is not an all-time history backfill. Subsequent syncs accumulate
-new completions. Failed history reads retain the ledger and return a nonzero sync
+page/offset parameters did not retrieve older entries. Ordinary recent-history syncs report `recent_history_only` until a yearly
+backfill has been completed. Older listens not already in the ledger may still
+appear. Subsequent syncs accumulate new completions. Failed history reads retain the ledger and return a nonzero sync
 exit, even if subscription merging succeeded. There is no background sync unless
 you arrange one explicitly.
 
@@ -105,3 +104,39 @@ The persistent-history approach was informed by
 Its 70% playback threshold is not used. Pocket Casts' own
 [playing-status definitions](https://github.com/Automattic/pocket-casts-android/blob/main/modules/services/model/src/main/java/au/com/shiftyjelly/pocketcasts/models/type/EpisodePlayingStatus.kt)
 identify completed episodes as status 3.
+
+## Year-based history backfill
+
+The iOS app uses a separate `/history/year` endpoint. It first reads a year count,
+then requests that year's interactions. Syllaro follows this read-only route when
+`--history-since-year` is supplied:
+
+```bash
+op run --env-file ~/.config/syllaro/pocketcasts.env -- \
+  syllaro --config ~/.config/syllaro/config.json sync-pocketcasts --login \
+  --history-since-year 2025
+```
+
+The selected range extends through the current UTC year. Each response must match
+its reported year count. History entries alone do not establish completion:
+Syllaro separately reads `/user/podcast/episodes` for each currently subscribed
+show and only accepts status 3 as completed. It ignores history delete/clear
+changes for new evidence and retains previously verified completions. No history
+or episode state is written to Pocket Casts. Two concurrent requests bound the
+per-show playback lookup; metadata responses retain the size and timeout limits.
+
+Coverage and the checked year range are persisted in the private ledger. Failed
+show reads or missing playback states are reported as a partial backfill and a
+nonzero sync exit. Previously verified completions survive. Ordinary subsequent
+recent-history syncs preserve the backfilled ledger. A selected year range does
+not prove that every earlier year is empty, or that entries from unsubscribed
+shows were imported.
+
+Live validation on 2026-10-09 returned 1,147 interactions for 2025 and 441 for
+2026. Of the 1,551 distinct interactions mapped to subscribed shows, 1,385 had
+verified completed state and 166 were partial/unplayed, with no failed show reads
+or missing playback states. Combined with recent-history evidence, 28 indexed RSS
+episodes matched completion evidence, including three previously recommended
+for processing. The production queue and downloaded media were untouched.
+
+Source: [iOS year-history implementation](https://github.com/Automattic/pocket-casts-ios/blob/trunk/Modules/Sources/PocketCastsServer/Public/Sync/SyncYearListeningHistoryTask.swift).
