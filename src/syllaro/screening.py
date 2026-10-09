@@ -639,8 +639,17 @@ def scan(root, profile, feed_limit=20, episode_limit=5, timeout=15, refresh=Fals
         feed["classification"] = classify(
             feed["title"], feed.get("description", ""), profile, feed=True
         )
+    from syllaro.podcast_metadata import load as load_metadata
+
+    enrichment = load_metadata(root)
     duplicates: dict[str, str] = {}
     for episode in state["episodes"].values():
+        richer = enrichment["episodes"].get(episode["id"], {}).get("notes", "")
+        if len(richer.split()) > len(episode["notes"].split()):
+            episode["notes"] = richer
+            episode["metadata_hash"] = hashlib.sha256(
+                (episode["title"] + "\n" + richer).encode()
+            ).hexdigest()
         episode["classification"] = classify(episode["title"], episode["notes"], profile)
         if not episode.get("enclosure"):
             episode["classification"].update(
@@ -670,31 +679,88 @@ def ranked(root, limit=20, decision=None, query=None, scope="episode", include_l
         raise ValueError("Invalid review options")
     state = load_state(root)
     from syllaro.listening import is_completed, load
+    from syllaro.podcast_metadata import evidence
+    from syllaro.podcast_metadata import load as load_metadata
 
+    metadata = load_metadata(root)
     listening = load(root)
     completed_keys = set(listening["completed"])
     completed_metadata = set(listening.get("completed_metadata", []))
     result = []
     for record in state[scope + "s"].values():
         completed = scope == "episode" and is_completed(record, completed_keys, completed_metadata)
+        signals = evidence(metadata, record["id"]) if scope == "episode" else {}
+        bookmarked = bool(signals.get("bookmarks"))
         explicit = state["overrides"]["episode"].get(record["id"]) if scope == "episode" else None
         if (
             completed
             and not include_listened
             and decision != "skip"
             and explicit not in ("process", "review")
+            and not bookmarked
         ):
             continue
         classification = effective(state, record, scope, completed)
         if scope == "episode":
+            if (
+                completed
+                and bookmarked
+                and not explicit
+                and state["overrides"]["feed"].get(record["feed_id"]) != "skip"
+            ):
+                classification.update(
+                    decision="review",
+                    rationale="Bookmarked completed episode; review saved passages",
+                )
+            classification["interest_signals"] = {
+                "bookmarks": len(signals["bookmarks"]),
+                "starred": signals["starred"],
+                "up_next": signals["up_next"],
+            }
+            classification["score"] = min(
+                100,
+                classification["score"]
+                + (10 if signals["starred"] else 0)
+                + (5 if signals["up_next"] else 0),
+            )
+            classification["publisher_transcripts"] = len(signals["transcripts"])
+            classification["chapters"] = [
+                dict(c, title=re.sub(r"https?://\S+", "[link]", c["title"]))
+                for c in signals["chapters"]
+            ]
+            classification["bookmarks"] = [
+                {"time": b["time"], "title": re.sub(r"https?://\S+", "[link]", b["title"])}
+                for b in signals["bookmarks"]
+            ]
+            classification["pocketcasts_link"] = (
+                "https://pca.st/episode/" + metadata["episodes"][record["id"]]["episode"]
+                if record["id"] in metadata["episodes"]
+                else None
+            )
+        if scope == "episode":
             classification["listening_status"] = "completed" if completed else "unknown"
+        if (
+            completed
+            and classification["decision"] == "skip"
+            and not include_listened
+            and decision != "skip"
+        ):
+            continue
         if decision and classification["decision"] != decision:
             continue
         if (
             query
             and query.casefold()
             not in (
-                record["title"] + " " + record.get("notes", record.get("description", ""))
+                record["title"]
+                + " "
+                + record.get("notes", record.get("description", ""))
+                + " "
+                + " ".join(c["title"] for c in signals.get("chapters", []))
+                + " "
+                + " ".join(
+                    b["title"] + " " + b.get("passage", "") for b in signals.get("bookmarks", [])
+                )
             ).casefold()
         ):
             continue

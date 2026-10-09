@@ -163,6 +163,43 @@ class Client:
                 raise
             raise PocketCastsError("Pocket Casts metadata request failed") from None
 
+    def signals(self, kind):
+        """Fixed read-only list payloads; Up Next never submits changes."""
+        specs = {
+            "bookmarks": ("/user/bookmark/list", {}),
+            "starred": ("/starred/list", {}),
+            "up_next": (
+                "/up_next/sync",
+                {"deviceTime": 0, "version": "1", "upNext": {"serverModified": 0, "changes": []}},
+            ),
+        }
+        if kind not in specs:
+            raise PocketCastsError("Invalid Pocket Casts signal")
+        path, body = specs[kind]
+        request = urllib.request.Request(
+            API + path,
+            data=json.dumps(body).encode(),
+            headers={
+                "Authorization": "Bearer " + self.token,
+                "Content-Type": "application/json",
+                "Accept": "application/json",
+            },
+        )
+        try:
+            with self.opener.open(request, timeout=self.timeout) as response:
+                raw = response.read(MAX_BYTES + 1)
+                if (
+                    response.headers.get_content_type() != "application/json"
+                    or len(raw) > MAX_BYTES
+                ):
+                    raise ValueError()
+                value = json.loads(raw)
+                if not isinstance(value, dict):
+                    raise ValueError()
+                return value
+        except (OSError, ValueError):
+            raise PocketCastsError("Pocket Casts signal request failed") from None
+
     def subscriptions(self):
         value = self.request()
         items = value.get("podcasts")

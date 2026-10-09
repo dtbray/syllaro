@@ -140,7 +140,10 @@ manually when its briefing was written, not produced by the inference worker.
 ## Podcast subscriptions
 
 Pocket Casts account subscriptions can also be merged read-only with
-`sync-pocketcasts`; see [authentication and 1Password setup](docs/pocketcasts.md).
+`sync-pocketcasts`; add `--enrich` for bookmarks, stars, Up Next, richer notes,
+chapters and publisher transcript links. Bookmarked completed episodes can resurface
+for review. `podcast-transcript EPISODE_ID` exports an advertised text candidate
+without audio. See [authentication, ranking rules and transcript exports](docs/pocketcasts.md).
 
 Import a UTF-8 OPML export without fetching feeds or creating episode jobs:
 

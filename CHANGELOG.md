@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Add optional read-only Pocket Casts bookmarks, stars, Up Next, richer show notes,
+  timed chapters and publisher transcript candidates. Bookmarked completed episodes
+  can resurface for review; stars/Up Next boost ranking without bypassing exclusion.
+  Add explicit private transcript exports without marking ASR/diarization complete.
+
 - Add read-only year-based Pocket Casts history backfill with count verification
   and separate playback-state checks, extending listened-episode exclusions
   beyond the web player’s 100 recent history entries.

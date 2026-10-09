@@ -431,6 +431,17 @@ def main():
         type=int,
         help="Backfill year-based history and verify completion states",
     )
+    pocket.add_argument(
+        "--enrich", action="store_true", help="Read signals, notes, chapters and transcript links"
+    )
+    pocket.add_argument("--metadata-feed-limit", type=int, default=20)
+    pocket.add_argument("--screening-profile", type=Path)
+    transcript = sub.add_parser(
+        "podcast-transcript", help="Fetch a publisher transcript candidate without audio"
+    )
+    transcript.add_argument("episode_id")
+    transcript.add_argument("--index", type=int, default=0)
+    transcript.add_argument("--timeout", type=float, default=15)
     screen = sub.add_parser(
         "screen-feeds", help="Fetch and rank metadata only; never download audio"
     )
@@ -498,6 +509,12 @@ def main():
             else:
                 override(root, args.id, args.decision, args.scope)
                 print(json.dumps({"id": args.id, "decision": args.decision, "scope": args.scope}))
+    elif args.command == "podcast-transcript":
+        from syllaro.podcast_metadata import fetch_transcript
+
+        with (root / "worker.lock").open("w") as lock:
+            fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            print(json.dumps(fetch_transcript(root, args.episode_id, args.index, args.timeout)))
     elif args.command == "sync-pocketcasts":
         from syllaro.pocketcasts import (
             Client,
@@ -509,6 +526,14 @@ def main():
         )
 
         try:
+            from syllaro.screening import DEFAULT_PROFILE, validate_profile
+
+            profile = DEFAULT_PROFILE
+            if args.enrich:
+                if not 1 <= args.metadata_feed_limit <= 1000:
+                    raise PocketCastsError("Metadata feed limit must be between 1 and 1000")
+                if args.screening_profile:
+                    profile = validate_profile(json.loads(args.screening_profile.read_text()))
             token = (
                 login(
                     os.environ.get("POCKETCASTS_EMAIL"),
@@ -526,8 +551,20 @@ def main():
             with (root / "worker.lock").open("w") as lock:
                 fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
                 report = sync(root, client, args.history_since_year)
+                if args.enrich:
+                    from syllaro.podcast_metadata import enrich
+
+                    report["enrichment"] = enrich(root, client, profile, args.metadata_feed_limit)
             print(json.dumps(report), flush=True)
-            if report["skipped"] or report["listening_failed"]:
+            if (
+                report["skipped"]
+                or report["listening_failed"]
+                or report.get("enrichment", {}).get("metadata_failed")
+                or any(
+                    s["status"] == "failed"
+                    for s in report.get("enrichment", {}).get("sources", {}).values()
+                )
+            ):
                 raise SystemExit(1)
         except PocketCastsError as error:
             parser.exit(1, f"{error}\n")

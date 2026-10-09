@@ -159,3 +159,82 @@ Its visible boundary therefore does not establish a server retention boundary.
 The year-based route can retrieve older retained interactions. Zero server counts
 cannot establish whether older listens never occurred, were never synced, or
 were cleared; they only describe what this endpoint currently returns.
+
+## Interest signals and publisher metadata
+
+```sh
+op run --env-file ~/.config/syllaro/pocketcasts.env -- \
+  syllaro --config ~/.config/syllaro/config.json sync-pocketcasts --login --enrich \
+  --metadata-feed-limit 20 --screening-profile ~/.config/syllaro/feed-screening.json
+syllaro --config ~/.config/syllaro/config.json screening --query "automation"
+syllaro --config ~/.config/syllaro/config.json podcast-transcript EPISODE_ID --index 0
+```
+
+`--enrich` also reads bookmarks, starred episodes, and Up Next, then fetches
+publisher metadata for at most 20 enabled, indexed subscriptions by default.
+Use `--metadata-feed-limit 1000` to cover all subscriptions within the supported
+limit. The report distinguishes selected/unselected feeds, successful/failed
+metadata reads, and account signals not matched to the indexed RSS episodes.
+Older starred/queued episodes outside the RSS index remain unmatched; they are
+not silently imported as processing jobs. An empty bookmark list is valid.
+
+Stars add 10 ranking points and Up Next adds 5, capped at 100. These are explicit
+interest signals, not evidence of actionable content: they do not promote thin
+notes or bypass completed-episode exclusion. A bookmark on a completed episode
+is a specific exception that resurfaces it for **review**, with its saved time
+and title. Explicit episode skips and feed skips still take precedence. Bookmark
+passages stay private and are searchable, but are not published in review output.
+
+The connector keeps generic speaker labels and does not infer identities,
+action-item owners, or deadlines from saved passages. Up Next is read with zero
+server-modified time and an empty change list; no queue/progress/bookmark changes
+are submitted. There are no enrichment/chat AI calls or paid inference calls.
+
+Show metadata joins on an exact enclosure URL, or exact title/publication time,
+within the same subscription. Exact episode GUIDs can also map account signals.
+Ambiguous matches are left unresolved. Longer sanitized show notes improve the
+existing keyword screening and survive subsequent RSS refreshes. Chapters preserve
+start/end times and titles and can be searched; review output includes episode
+links. Publisher transcript URLs and optional external chapter URLs stay in a
+separate private `feeds/pocketcasts-metadata.json` file.
+
+Metadata reads use public HTTPS URLs with no account token, no proxies or HTTP
+redirects, public-address checks, and bounded compressed/decompressed bodies.
+The fixed cache endpoint uses `disableredirect=true`; explicit location URLs are
+validated before fetching. Gzip responses are supported. Partial refreshes retain
+previous metadata and report failures with a nonzero exit. Failed account-signal
+refreshes retain cached signals for inspection but disable their ranking effects
+and bookmarked-listen exceptions until a successful refresh.
+
+`podcast-transcript` explicitly downloads one advertised text/VTT/SRT/JSON
+candidate, without audio, into a private JSON artifact under
+`feeds/publisher-transcripts/`. It preserves the original text and cue timestamps
+and reports whether timestamp cues were detected. Speaker labels remain unverified.
+HTML pages, insecure links, redirects, oversized bodies, and unsupported media
+fail rather than becoming transcripts. These artifacts are untrusted publisher
+evidence; obtaining one does **not** mark ASR or diarization complete or enqueue
+an episode. RSS audio-job processing is still separate work.
+
+Client-code references: [list endpoints and Up Next](https://github.com/Automattic/pocket-casts-android/blob/main/modules/services/servers/src/main/java/au/com/shiftyjelly/pocketcasts/servers/sync/SyncService.kt),
+[bookmark schemas](https://github.com/Automattic/pocket-casts-android/blob/main/modules/services/protobuf/src/main/proto/sync_api.proto),
+[notes, chapters and transcripts](https://github.com/Automattic/pocket-casts-android/blob/main/modules/services/servers/src/main/java/au/com/shiftyjelly/pocketcasts/servers/podcast/ShowNotesResponse.kt),
+and [public metadata routes](https://github.com/Automattic/pocket-casts-android/blob/main/modules/services/servers/src/main/java/au/com/shiftyjelly/pocketcasts/servers/podcast/PodcastCacheService.kt).
+
+### Live validation, 2026-10-09
+
+All three account list reads succeeded: 0 bookmarks, 6 starred episodes and 505
+Up Next entries. Metadata refresh covered all 376 subscriptions: 361 succeeded,
+15 failed and remained explicit partial results. It matched 1,725 indexed episodes;
+184 had advertised transcript candidates. Six stars and 469 Up Next entries did
+not match the current limited RSS episode index. No title-only guessing or
+historical episode auto-import was performed.
+
+One real publisher VTT candidate was exported privately with its timestamp cues
+intact. This validates text retrieval, not full transcript quality or speaker
+accuracy. Bookmark exception behavior uses synthetic regression evidence because
+the account currently has no bookmarks. Production queue hashes were unchanged.
+The core and separately installed wheel each passed 74 tests; lint, type checks,
+and the hashed tool lock check passed. These checks do not validate an RSS audio
+worker or automated publisher-transcript substitution, neither of which was added.
+The isolated commit wheel separately passed 66 tests; the 74-test working-tree
+suite also includes pending repository maturity checks.
