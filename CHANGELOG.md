@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Add experimental read-only Pocket Casts subscription sync with in-memory
+  secret-manager login/session credentials, redacted failures, and additive imports.
+  Live account validation matched 376 existing RSS subscriptions; no audio is queued.
+
 - Add bounded RSS/Atom metadata screening, show-note searches, ranked local-rule
   recommendations, private caching, and persistent feed/episode overrides. Screening
   never downloads enclosures, queues processing jobs, or calls inference models.

@@ -416,6 +416,16 @@ def main():
     opml = sub.add_parser("import-opml", help="Import subscriptions only; do not fetch episodes")
     opml.add_argument("path", type=Path)
     sub.add_parser("feeds", help="List subscriptions without revealing feed URLs")
+    pocket = sub.add_parser(
+        "sync-pocketcasts", help="Merge account subscriptions; never queue audio"
+    )
+    auth = pocket.add_mutually_exclusive_group()
+    auth.add_argument(
+        "--login", action="store_true", help="Use secret-manager-injected email/password"
+    )
+    auth.add_argument("--token-file", type=Path)
+    auth.add_argument("--firefox-profile", type=Path)
+    pocket.add_argument("--timeout", type=float, default=15)
     screen = sub.add_parser(
         "screen-feeds", help="Fetch and rank metadata only; never download audio"
     )
@@ -471,6 +481,39 @@ def main():
             else:
                 override(root, args.id, args.decision, args.scope)
                 print(json.dumps({"id": args.id, "decision": args.decision, "scope": args.scope}))
+    elif args.command == "sync-pocketcasts":
+        from syllaro.pocketcasts import (
+            Client,
+            PocketCastsError,
+            file_token,
+            firefox_token,
+            login,
+            sync,
+        )
+
+        try:
+            token = (
+                login(
+                    os.environ.get("POCKETCASTS_EMAIL"),
+                    os.environ.get("POCKETCASTS_PASSWORD"),
+                    args.timeout,
+                )
+                if args.login
+                else file_token(args.token_file)
+                if args.token_file
+                else firefox_token(args.firefox_profile)
+                if args.firefox_profile
+                else os.environ.get("POCKETCASTS_TOKEN")
+            )
+            client = Client(token, args.timeout)
+            with (root / "worker.lock").open("w") as lock:
+                fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                report = sync(root, client)
+            print(json.dumps(report), flush=True)
+            if report["skipped"]:
+                raise SystemExit(1)
+        except PocketCastsError as error:
+            parser.exit(1, f"{error}\n")
     elif args.command in ("import-opml", "feeds"):
         from syllaro.feeds import import_opml, public_feeds
 

@@ -139,6 +139,9 @@ manually when its briefing was written, not produced by the inference worker.
 
 ## Podcast subscriptions
 
+Pocket Casts account subscriptions can also be merged read-only with
+`sync-pocketcasts`; see [authentication and 1Password setup](docs/pocketcasts.md).
+
 Import a UTF-8 OPML export without fetching feeds or creating episode jobs:
 
 ```sh

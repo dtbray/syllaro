@@ -139,9 +139,16 @@ def parse_opml(path):
 
 
 def import_opml(root, path):
+    records, errors = parse_opml(path)
+    return import_records(root, records, errors)
+
+
+def import_records(root, records, errors=()):
+    """Merge validated subscriptions without changing existing preferences."""
     from syllaro.cli import write_json
 
-    records, errors = parse_opml(path)
+    for record in records:
+        validate_registry({"version": 1, "feeds": [record]})
     registry = read_registry(root)
     existing = {feed["url"]: feed for feed in registry["feeds"]}
     report = {
