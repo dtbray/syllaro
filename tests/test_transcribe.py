@@ -13,6 +13,12 @@ from syllaro import transcribe
 
 class TranscribeTest(unittest.TestCase):
     def test_explicit_local_asr_releases_gpu_before_cpu_alignment(self):
+        self.run_pipeline(multilingual=True)
+
+    def test_english_only_model_omits_multilingual_generation_options(self):
+        self.run_pipeline(multilingual=False)
+
+    def run_pipeline(self, multilingual):
         with tempfile.TemporaryDirectory() as folder:
             root = Path(folder)
             audio, transcript = root / "audio.wav", root / "audio.json"
@@ -25,6 +31,7 @@ class TranscribeTest(unittest.TestCase):
                 cuda=types.SimpleNamespace(empty_cache=lambda: calls.append("release")),
             )
             model = Mock()
+            model.return_value.generation_config.is_multilingual = multilingual
             processor = Mock()
             recognizer = Mock(return_value={"chunks": [{"timestamp": (0, 2), "text": "Evidence"}]})
             pipeline = Mock(return_value=recognizer)
@@ -78,6 +85,10 @@ class TranscribeTest(unittest.TestCase):
             self.assertEqual(calls, ["release", "cpu"])
             self.assertTrue(model.call_args.kwargs["local_files_only"])
             self.assertTrue(processor.call_args.kwargs["local_files_only"])
+            expected = {"num_beams": 5}
+            if multilingual:
+                expected.update(language="en", task="transcribe")
+            self.assertEqual(recognizer.call_args.kwargs["generate_kwargs"], expected)
             self.assertEqual(json.loads(transcript.read_text())["language"], "en")
             self.assertEqual(transcript.stat().st_mode & 0o777, 0o600)
             self.assertFalse(transcript.with_suffix(".transcribed.tmp").exists())

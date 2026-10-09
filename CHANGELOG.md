@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Handle English-only local Transformers ASR models without multilingual generation
+  options. Timestamp validation still rejects invalid output before persistence.
+
 - Add an explicit local `transformers` transcription backend for PyTorch/ROCm
   ASR, with independently placed WhisperX alignment. It requires a local model
   directory, floating-point compute type, and explicit language. The default

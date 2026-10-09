@@ -44,6 +44,11 @@ def main():
     model = AutoModelForSpeechSeq2Seq.from_pretrained(
         str(args.model_path), dtype=dtype, attn_implementation="sdpa", local_files_only=True
     )
+    generation: dict[str, str | int] = {"num_beams": 5}
+    if getattr(model.generation_config, "is_multilingual", True):
+        generation.update(language=args.language, task="transcribe")
+    elif args.language != "en":
+        raise ValueError("English-only ASR model requires language en")
     processor = AutoProcessor.from_pretrained(str(args.model_path), local_files_only=True)
     recognizer = pipeline(
         "automatic-speech-recognition",
@@ -55,11 +60,7 @@ def main():
         chunk_length_s=30,
         batch_size=args.batch_size,
     )
-    result = recognizer(
-        audio,
-        return_timestamps=True,
-        generate_kwargs={"language": args.language, "task": "transcribe", "num_beams": 5},
-    )
+    result = recognizer(audio, return_timestamps=True, generate_kwargs=generation)
     segments = []
     for chunk in result["chunks"]:
         begin, end = chunk["timestamp"]
