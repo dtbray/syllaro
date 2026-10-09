@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Add `submit --audio` for local recordings through the existing transcription,
+  diarization, recovery and durable cleanup stages. Original recordings stay intact.
+  Persisted `audio` jobs require an updated Syllaro core; older readers reject them.
+
 - Add optional read-only Pocket Casts bookmarks, stars, Up Next, richer show notes,
   timed chapters and publisher transcript candidates. Bookmarked completed episodes
   can resurface for review; stars/Up Next boost ranking without bypassing exclusion.

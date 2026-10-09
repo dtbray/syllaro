@@ -44,7 +44,7 @@ class Config(ConfigRequired, total=False):
 class JobRequired(TypedDict):
     id: str
     source: str
-    kind: Literal["transcript", "youtube"]
+    kind: Literal["transcript", "youtube", "audio"]
     profile: ProfileName
     status: Status
 
@@ -159,7 +159,7 @@ def validate_job(value: object, expected_id: str | None = None) -> Job:
         raise ValueError("Job id does not match its queue filename")
     text(value.get("source"), "source")
     choices = {
-        "kind": ("youtube", "transcript"),
+        "kind": ("youtube", "transcript", "audio"),
         "profile": ("local", "workstation"),
         "status": ("pending", "running", "transcribed", "summarizing", "done", "failed"),
         "stage": ("all", "ingest", "summarize"),
@@ -180,6 +180,8 @@ def validate_job(value: object, expected_id: str | None = None) -> Job:
             or parsed.password
         ):
             raise ValueError("Job source must be a YouTube URL")
+    if value["kind"] == "audio" and not Path(value["source"]).is_absolute():
+        raise ValueError("Audio job source must be an absolute local path")
     for field in ("created", "started", "finished"):
         if field in value:
             number(value[field], field)

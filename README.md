@@ -62,6 +62,11 @@ The example expects Ollama at port 11434 with `qwen3:4b`; this repository does
 not install Ollama or its weights. Test summarization with a text transcript
 before downloading/transcribing videos.
 
+For a local audio recording, use `submit /absolute/recording.mp3 --audio` and
+`ingest`. FFmpeg converts it into cached audio before the same transcription and
+diarization stages. The original recording is retained; cached media is removed
+only after durable speech artifacts. `ingest` does not contact a summary model.
+
 For YouTube, submit a URL instead of a file and omit `--transcript`. Defaults:
 Whisper small, CPU int8, four threads, batch size one, diarization enabled.
 Accept the free [pyannote community-1 model terms](https://huggingface.co/pyannote/speaker-diarization-community-1)

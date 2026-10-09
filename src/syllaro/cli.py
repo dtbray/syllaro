@@ -190,11 +190,32 @@ def ingest(job: Job, root: Path, config: Config) -> str:
         # Cache downloaded audio and transcripts across summary retries.
         transcript = out / "audio.json"
         if not transcript.exists():
-            for tool in ("yt-dlp", "ffmpeg"):
+            for tool in ("ffmpeg",) if job["kind"] == "audio" else ("yt-dlp", "ffmpeg"):
                 if not shutil.which(tool):
                     raise RuntimeError(f"Missing dependency: {tool}")
             audio = out / "audio.wav"
-            if not audio.exists():
+            if not audio.exists() and job["kind"] == "audio":
+                source = Path(job["source"])
+                if source.is_symlink() or not source.is_file():
+                    raise ValueError("Audio source must be a regular local file")
+                run_process(
+                    [
+                        "ffmpeg",
+                        "-nostdin",
+                        "-y",
+                        "-i",
+                        str(source),
+                        "-vn",
+                        "-ac",
+                        "1",
+                        "-ar",
+                        "16000",
+                        str(audio),
+                    ],
+                    out / "process.log",
+                    config,
+                )
+            elif not audio.exists():
                 run_process(
                     [
                         "yt-dlp",
@@ -408,7 +429,9 @@ def main():
     sub = parser.add_subparsers(dest="command", required=True)
     submit = sub.add_parser("submit")
     submit.add_argument("source")
-    submit.add_argument("--transcript", action="store_true")
+    media_type = submit.add_mutually_exclusive_group()
+    media_type.add_argument("--transcript", action="store_true")
+    media_type.add_argument("--audio", action="store_true", help="Import a local audio file")
     submit.add_argument("--profile", choices=["local", "workstation"], default="local")
     for command in ("work", "ingest", "summarize"):
         worker = sub.add_parser(command)
@@ -582,8 +605,11 @@ def main():
                 print(json.dumps(public_feeds(root), ensure_ascii=False), flush=True)
     elif args.command == "submit":
         source = args.source
-        if args.transcript:
-            source = str(Path(source).resolve(strict=True))
+        if args.transcript or args.audio:
+            path = Path(source)
+            if args.audio and (path.is_symlink() or not path.is_file()):
+                parser.error("Audio source must be a regular local file")
+            source = str(path.resolve(strict=True))
         elif urlparse(source).scheme not in ("https", "http") or urlparse(source).hostname not in (
             "youtube.com",
             "www.youtube.com",
@@ -595,7 +621,7 @@ def main():
         job = {
             "id": ident,
             "source": source,
-            "kind": "transcript" if args.transcript else "youtube",
+            "kind": "transcript" if args.transcript else "audio" if args.audio else "youtube",
             "profile": args.profile,
             "status": "pending",
             "created": time.time(),
