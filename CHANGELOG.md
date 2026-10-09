@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Document the validated laptop-to-workstation audio handoff, queue ownership,
+  recovery checks, and the remaining CPU alignment bottleneck.
+
 - Handle English-only local Transformers ASR models without multilingual generation
   options. Timestamp validation still rejects invalid output before persistence.
 
