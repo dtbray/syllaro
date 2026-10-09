@@ -413,6 +413,9 @@ def main():
     for command in ("work", "ingest", "summarize"):
         worker = sub.add_parser(command)
         worker.add_argument("--limit", type=int)
+    opml = sub.add_parser("import-opml", help="Import subscriptions only; do not fetch episodes")
+    opml.add_argument("path", type=Path)
+    sub.add_parser("feeds", help="List subscriptions without revealing feed URLs")
     sub.add_parser("status")
     retry = sub.add_parser("retry")
     retry.add_argument("id")
@@ -420,7 +423,19 @@ def main():
     config = validate_config(json.loads(args.config.read_text()))
     root = Path(config["data_dir"]).expanduser().resolve()
     root.mkdir(parents=True, exist_ok=True)
-    if args.command == "submit":
+    if args.command in ("import-opml", "feeds"):
+        from syllaro.feeds import import_opml, public_feeds
+
+        with (root / "worker.lock").open("w") as lock:
+            fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            if args.command == "import-opml":
+                report = import_opml(root, args.path)
+                print(json.dumps(report), flush=True)
+                if report["skipped"]:
+                    raise SystemExit(1)
+            else:
+                print(json.dumps(public_feeds(root), ensure_ascii=False), flush=True)
+    elif args.command == "submit":
         source = args.source
         if args.transcript:
             source = str(Path(source).resolve(strict=True))

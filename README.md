@@ -136,3 +136,25 @@ CPU installs must keep `-c requirements-cpu.txt` on subsequent dependency
 updates to preserve the CPU wheel pins. Automated summaries record the selected
 inference profile; the first-video test’s `assistant` provider was recorded
 manually when its briefing was written, not produced by the inference worker.
+
+## Podcast subscriptions
+
+Import a UTF-8 OPML export without fetching feeds or creating episode jobs:
+
+```sh
+syllaro --config ~/.config/syllaro/config.json import-opml /path/to/podcasts.opml
+syllaro --config ~/.config/syllaro/config.json feeds
+```
+
+Subscriptions are stored privately under the configured data directory in
+`feeds/subscriptions.json` (directory 0700, registry 0600). Full feed URLs, including
+subscription tokens or credentials, stay in that file and are omitted from command
+reports/listings. Keep OPML exports and subscription registries out of Git.
+Repeated imports deduplicate exact feed URLs, merge folder memberships and preserve
+existing subscription preferences. Malformed documents leave the registry unchanged;
+invalid entries are reported as skipped with a nonzero command exit rather than
+claiming a complete import. [Details](docs/podcast-subscriptions.md).
+
+This is subscription management only. Episode polling/downloads and RSS media-job
+support remain separate work; imported subscriptions do not start background fetching,
+transcription, diarization or summarization.

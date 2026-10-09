@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Add private, durable OPML subscription imports and URL-redacted feed listings.
+  Importing subscriptions does not fetch feeds or queue episodes.
+
 - Document the validated laptop-to-workstation audio handoff, queue ownership,
   recovery checks, and the remaining CPU alignment bottleneck.
 
