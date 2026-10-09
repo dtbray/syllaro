@@ -140,3 +140,22 @@ episodes matched completion evidence, including three previously recommended
 for processing. The production queue and downloaded media were untouched.
 
 Source: [iOS year-history implementation](https://github.com/Automattic/pocket-casts-ios/blob/trunk/Modules/Sources/PocketCastsServer/Public/Sync/SyncYearListeningHistoryTask.swift).
+
+### Older retained history
+
+Further account count probes on 2026-10-09 found retained interactions back to
+2019: 519 (2019), 679 (2020), 2,150 (2021), 3,096 (2022), 2,382 (2023), and 1,682
+(2024). Years 2004–2018 returned zero. Running the same read-only backfill with
+`--history-since-year 2019` retrieved 12,096 total interactions for 2019–2026.
+Among 11,180 distinct subscribed-show interactions, 10,761 completed entries had
+usable matching metadata; 418 were partial/unplayed and one completed entry
+could not be matched. No show reads failed and no playback states were missing.
+72 indexed RSS episodes now match retained completion evidence, including six
+previous processing recommendations. Production queue hashes stayed unchanged.
+
+The iOS normal history list uses a `LIMIT 1000` database query in
+[EpisodesDataManager](https://github.com/Automattic/pocket-casts-ios/blob/trunk/podcasts/EpisodesDataManager.swift).
+Its visible boundary therefore does not establish a server retention boundary.
+The year-based route can retrieve older retained interactions. Zero server counts
+cannot establish whether older listens never occurred, were never synced, or
+were cleared; they only describe what this endpoint currently returns.
