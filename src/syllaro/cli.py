@@ -240,7 +240,10 @@ def ingest(job: Job, root: Path, config: Config) -> str:
             data.get("_syllaro_diarized")
             or (data["segments"] and all(s.get("speaker") for s in data["segments"]))
         ):
-            if not os.environ.get("HF_TOKEN"):
+            model_path = config.get("diarization_model_path")
+            if model_path and not Path(model_path).is_dir():
+                raise RuntimeError("Configured diarization_model_path directory does not exist")
+            if not model_path and not os.environ.get("HF_TOKEN"):
                 raise RuntimeError(
                     "HF_TOKEN required to add speaker labels to cached transcription"
                 )
@@ -260,6 +263,8 @@ def ingest(job: Job, root: Path, config: Config) -> str:
                 diarization_device,
             ]
             default_batch = 4 if diarization_device == "cuda" else 1
+            if model_path:
+                diarization_args += ["--model-path", model_path]
             diarization_args += [
                 "--batch-size",
                 str(config.get("diarization_batch_size", default_batch)),

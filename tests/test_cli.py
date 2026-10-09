@@ -202,6 +202,29 @@ class SyllaroTest(unittest.TestCase):
             scout.process(job, self.root, config)
             self.assertEqual(run.call_count, 1)
 
+    def test_cached_diarization_with_local_model_without_token(self):
+        job = self.job(kind="youtube")
+        out = self.root / "test"
+        out.mkdir()
+        (out / "audio.wav").touch()
+        raw = {"segments": [{"start": 0, "end": 2, "text": "Topic"}]}
+        (out / "audio.json").write_text(json.dumps(raw))
+        config = {**self.config, "diarization_model_path": str(self.root)}
+
+        def fake_diarize(args, log, config):
+            self.assertEqual(args[args.index("--model-path") + 1], str(self.root))
+            raw["segments"][0]["speaker"] = "SPEAKER_00"
+            raw["_syllaro_diarized"] = True
+            (out / "audio.json").write_text(json.dumps(raw))
+
+        with (
+            patch.dict("os.environ", {}, clear=True),
+            patch.object(scout, "run_process", side_effect=fake_diarize),
+        ):
+            scout.ingest(job, self.root, config)
+        self.assertIn("SPEAKER_00", (out / "transcript.txt").read_text())
+        self.assertFalse((out / "audio.wav").exists())
+
     def test_exclusive_worker_lock(self):
         with (self.root / "worker.lock").open("w") as lock:
             scout.fcntl.flock(lock, scout.fcntl.LOCK_EX | scout.fcntl.LOCK_NB)

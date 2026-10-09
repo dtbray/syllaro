@@ -32,6 +32,8 @@ class SchemaTest(unittest.TestCase):
             ("diarize", "false"),
             ("device", "magic"),
             ("diarization_batch_size", 0),
+            ("diarization_model_path", "relative/model"),
+            ("diarization_model_path", ""),
         ):
             with self.subTest(field=field):
                 config = self.config()

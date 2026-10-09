@@ -3,6 +3,7 @@
 
 import math
 import re
+from pathlib import Path
 from typing import Literal, TypedDict, cast
 from urllib.parse import urlparse
 
@@ -33,6 +34,7 @@ class Config(ConfigRequired, total=False):
     compute_type: str
     diarization_device: Literal["cpu", "cuda"]
     diarization_batch_size: int
+    diarization_model_path: str
     batch_size: int
     language: str
 
@@ -114,6 +116,10 @@ def validate_config(value: object) -> Config:
             number(value[field], field, integer=True)
     if "language" in value:
         text(value["language"], "language")
+    if "diarization_model_path" in value:
+        text(value["diarization_model_path"], "diarization_model_path")
+        if not Path(value["diarization_model_path"]).is_absolute():
+            raise ValueError("diarization_model_path must be an absolute local directory path")
     for name in ("local", "workstation"):
         if name not in value:
             continue  # Ingestion does not require inference profiles.

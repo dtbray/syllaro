@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+- Support an explicit absolute `diarization_model_path` for offline local models,
+  without requiring or passing Hugging Face credentials. Existing Hub-backed
+  configurations retain their token requirement.
+
 ## 0.2.0 - 2026-10-03
 
 - Separate ingestion and summarization queue stages; delete downloaded media

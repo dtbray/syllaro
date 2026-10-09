@@ -73,6 +73,12 @@ Silero performs speech detection without a gated model. Speaker diarization
 runs separately after alignment, so a cached transcript can gain speaker
 labels without repeating transcription. Its token is read from the environment.
 
+For an already-authorized local model snapshot, set the optional
+`diarization_model_path` to its absolute directory path. This explicitly selects
+that model without requiring or passing `HF_TOKEN`; a missing directory fails
+rather than falling back to the Hub. See [AMD/ROCm setup](docs/gpu-rocm.md)
+for the isolated Pop!_OS workstation candidate and validation limits.
+
 Jobs and artifacts live under `~/.local/share/syllaro/`: raw audio, WhisperX
 JSON, timestamped transcript, partial summaries, final summary, and process log.
 Downloaded media is removed after successful transcription and configured diarization.

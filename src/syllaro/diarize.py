@@ -16,13 +16,18 @@ def main():
     parser.add_argument("--threads", type=int, default=4)
     parser.add_argument("--device", choices=["cpu", "cuda"], default="cpu")
     parser.add_argument("--batch-size", type=int)
+    parser.add_argument("--model-path", type=Path, help="Explicit local model directory")
     args = parser.parse_args()
     if args.threads < 1 or (args.batch_size is not None and args.batch_size < 1):
         parser.error("threads and batch size must be positive")
     if not args.audio.is_file() or not args.transcript.is_file():
         parser.error("Audio and transcript files must exist")
     token = os.environ.get("HF_TOKEN")
-    if not token:
+    if args.model_path is not None and (
+        not args.model_path.is_absolute() or not args.model_path.is_dir()
+    ):
+        parser.error("model-path must be an existing absolute local directory")
+    if not token and args.model_path is None:
         parser.error("HF_TOKEN is required for local diarization")
 
     # ML imports remain outside the dependency-free core CLI.
@@ -32,7 +37,12 @@ def main():
 
     torch.set_num_threads(args.threads)
     started = time.monotonic()
-    pipeline = DiarizationPipeline(token=token, device=args.device)
+    if args.model_path is None:
+        pipeline = DiarizationPipeline(token=token, device=args.device)
+    else:
+        pipeline = DiarizationPipeline(
+            model_name=str(args.model_path), token=None, device=args.device
+        )
     if args.batch_size is not None:
         pipeline.model.segmentation_batch_size = args.batch_size
         pipeline.model.embedding_batch_size = args.batch_size

@@ -12,6 +12,43 @@ from syllaro import diarize
 
 
 class DiarizeTest(unittest.TestCase):
+    def test_local_model_does_not_pass_environment_token(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            audio, transcript = root / "audio.wav", root / "audio.json"
+            audio.touch()
+            transcript.write_text(json.dumps({"segments": [{"text": "Evidence"}]}))
+            calls = []
+
+            class Pipeline:
+                def __init__(self, **kwargs):
+                    calls.append(kwargs)
+                    self.model = types.SimpleNamespace()
+
+                def __call__(self, filename, progress_callback):
+                    return object()
+
+            modules = {
+                "torch": types.SimpleNamespace(set_num_threads=lambda n: None),
+                "whisperx": types.SimpleNamespace(assign_word_speakers=lambda turns, data: data),
+                "whisperx.diarize": types.SimpleNamespace(DiarizationPipeline=Pipeline),
+            }
+            previous = os.umask(0o022)
+            try:
+                with (
+                    patch.dict(sys.modules, modules),
+                    patch.dict(os.environ, {"HF_TOKEN": "must-not-pass"}),
+                    patch.object(
+                        sys,
+                        "argv",
+                        ["diarize", str(audio), str(transcript), "--model-path", str(root)],
+                    ),
+                ):
+                    diarize.main()
+            finally:
+                os.umask(previous)
+            self.assertEqual(calls, [{"model_name": str(root), "token": None, "device": "cpu"}])
+
     def test_wrapper_batches_callback_and_private_atomic_output(self):
         with tempfile.TemporaryDirectory() as folder:
             audio = Path(folder) / "audio.wav"
