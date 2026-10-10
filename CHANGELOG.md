@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- Refine the web workspace with stable status counts, separate queue browsing and
+  submission controls, readable artifacts, and mobile detail/back navigation.
+  Load artifacts on demand with per-tab retry and guarded caching; manual refresh
+  and job lifecycle changes refresh cached content. Keep API, persisted jobs and
+  worker behavior unchanged; invalid form input no longer triggers API polling.
+
 - Fix Transformers podcast timestamp failures using native Whisper long-form
   segment decoding before independent word alignment. Keep strict boundary checks.
   Report redacted subprocess causes instead of full command arguments, and provide

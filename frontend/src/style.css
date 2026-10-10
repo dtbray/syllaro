@@ -129,6 +129,26 @@
 .markdown {
     line-height: 1.75;
     overflow-wrap: anywhere;
+    max-width: 68ch;
+}
+.transcript {
+    max-width: 68ch;
+}
+@media (min-width: 1024px) {
+    .transcript {
+        max-height: 70vh;
+        overflow: auto;
+    }
+}
+.job.job-selected {
+    background: oklch(0.96 0.018 250);
+    color: var(--foreground);
+    box-shadow: inset 3px 0 oklch(0.55 0.08 250);
+}
+.dark .job.job-selected {
+    background: oklch(0.28 0.025 250);
+    color: var(--foreground);
+    box-shadow: inset 3px 0 oklch(0.72 0.07 250);
 }
 .markdown p,
 .markdown ul,
