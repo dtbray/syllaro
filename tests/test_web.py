@@ -181,3 +181,51 @@ class WebTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+@unittest.skipIf(TestClient is None, "Optional web dependencies not installed")
+class LiveStreamTests(unittest.IsolatedAsyncioTestCase):
+    async def test_real_http_stream_external_write_and_reconnect(self):
+        import asyncio
+        import socket
+
+        import httpx
+        import uvicorn
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            listener = socket.socket()
+            listener.bind(("127.0.0.1", 0))
+            port = listener.getsockname()[1]
+            server = uvicorn.Server(
+                uvicorn.Config(create_app({"main": root}), log_level="critical")
+            )
+            task = asyncio.create_task(server.serve(sockets=[listener]))
+            try:
+                async with asyncio.timeout(5):
+                    while not server.started:
+                        await asyncio.sleep(0.01)
+                async with httpx.AsyncClient(
+                    base_url=f"http://127.0.0.1:{port}", timeout=3
+                ) as client:
+                    async with client.stream("GET", "/api/v1/events") as response:
+                        self.assertEqual(response.status_code, 200)
+                        self.assertIn("text/event-stream", response.headers["content-type"])
+                        lines = response.aiter_lines()
+                        self.assertEqual(await anext(lines), "event: change")
+                        self.assertTrue(json.loads((await anext(lines))[6:])["reset"])
+                        await anext(lines)
+                        job = submit_job(root, "https://youtu.be/synthetic")
+                        self.assertEqual(await anext(lines), "event: change")
+                        event = json.loads((await anext(lines))[6:])
+                        self.assertEqual(event["changes"][0]["id"], job["id"])
+                        snapshot = (await client.get("/api/v1/jobs")).json()
+                        self.assertEqual(snapshot["jobs"][0]["id"], job["id"])
+                    async with client.stream("GET", "/api/v1/events") as response:
+                        lines = response.aiter_lines()
+                        await anext(lines)
+                        self.assertTrue(json.loads((await anext(lines))[6:])["reset"])
+            finally:
+                server.should_exit = True
+                await asyncio.wait_for(task, 5)
+                listener.close()

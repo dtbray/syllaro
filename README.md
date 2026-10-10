@@ -230,6 +230,18 @@ Additional queues must be explicitly configured by the server operator:
   --queue publisher-transcripts=~/.config/syllaro/podcast-transcript-pilot.json
 ```
 
+The browser receives live changes through `/api/v1/events` (server-sent events).
+The Linux web adapter watches durable job writes and saved artifacts, including
+changes made by separate CLI workers. There is no periodic browser polling.
+Reconnecting reloads current state; slow clients and filesystem event overflow
+also trigger a full resync. A disconnected indicator and manual Refresh remain
+available. This updates saved results, not partial speech or streamed model tokens.
+Reverse proxies must disable buffering for the event stream.
+
+Queues are separate configured data directories with their own jobs, artifacts,
+and worker locks. The browsing filter does not change the submission destination;
+“All queues” combines the view only.
+
 The API exposes `/api/v1/health`, `/jobs` (GET/POST), `/jobs/{id}`,
 `/jobs/{id}/transcript`, `/briefing`, `/action-items` (GET), and
 `/jobs/{id}/retry` (POST), all under `/api/v1`. Optional `queue=NAME` selects only

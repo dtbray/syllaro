@@ -1,4 +1,33 @@
-import { test, expect } from '@playwright/test';
+import { test, expect, type Page } from '@playwright/test';
+test.beforeEach(async ({ page }) => {
+    await page.addInitScript(() => {
+        class MockEvents extends EventTarget {
+            onerror: (() => void) | null = null;
+            constructor() {
+                super();
+                (window as any).liveEvents = this;
+            }
+            close() {}
+        }
+        (window as any).EventSource = MockEvents;
+    });
+});
+async function change(
+    page: Page,
+    changes: { queue: string; id: string; artifact: boolean }[] = [],
+    reset = false,
+) {
+    await page.evaluate(
+        ({ changes, reset }) => {
+            (window as any).liveEvents.dispatchEvent(
+                new MessageEvent('change', {
+                    data: JSON.stringify({ reset, changes }),
+                }),
+            );
+        },
+        { changes, reset },
+    );
+}
 const initial = {
     id: 'example',
     queue: 'main',
@@ -108,6 +137,7 @@ test('submit source, show failure, and refresh without a full reload', async ({
             artifacts: [],
         },
     ];
+    await change(page, [{ queue: 'main', id: 'new', artifact: false }]);
     await expect(
         page.getByRole('button', { name: /Worker finished/ }),
     ).toBeVisible({ timeout: 10000 });
@@ -281,7 +311,7 @@ test('invalid URL does not start 5s polling', async ({ page }) => {
     await page.waitForTimeout(100);
     expect(jobsCalls).toBe(baseline);
 });
-test('queue filter is independent and submission/polling cover all queues', async ({
+test('queue filter is independent and live events cover hidden queues', async ({
     page,
 }) => {
     const mainJob = { ...ready, id: 'm1', title: 'Main job' };
@@ -343,7 +373,7 @@ test('queue filter is independent and submission/polling cover all queues', asyn
     await expect(page.getByRole('status')).toContainText('Queued');
     await expect(page.getByRole('button', { name: 'Posted 1' })).toHaveCount(0);
     const beforePoll = listCalls;
-    await page.clock.fastForward(6000);
+    await change(page, [{ queue: 'other', id: 'p1', artifact: false }]);
     await expect.poll(() => listCalls).toBeGreaterThan(beforePoll);
     await page
         .getByLabel('Show jobs from')
@@ -437,7 +467,7 @@ test('status counts show zero values in order', async ({ page }) => {
     );
 });
 
-test('polling caches unchanged artifacts, lifecycle and manual refresh invalidate, failures retain content', async ({
+test('events cache unchanged artifacts, lifecycle and manual refresh invalidate, failures retain content', async ({
     page,
 }) => {
     await page.clock.install();
@@ -474,11 +504,11 @@ test('polling caches unchanged artifacts, lifecycle and manual refresh invalidat
     await page.getByRole('button', { name: /Example recording/ }).click();
     await expect(page.locator('pre')).toContainText('revision 1');
     await expect.poll(() => detailCalls).toBe(1);
-    await page.clock.fastForward(6000);
+    await change(page, [{ queue: 'main', id: job.id, artifact: false }]);
     await expect.poll(() => detailCalls).toBe(2);
     expect(artifactCalls).toBe(1);
     job = { ...job, stage: 'transcribe' };
-    await page.clock.fastForward(6000);
+    await change(page, [{ queue: 'main', id: job.id, artifact: false }]);
     await expect(page.locator('pre')).toContainText('revision 2');
     expect(artifactCalls).toBe(2);
     await page.getByRole('button', { name: 'Refresh', exact: true }).click();
@@ -545,4 +575,97 @@ test('late artifact response cannot overwrite a newer job', async ({
     await expect(page.locator('pre')).not.toContainText(
         'Old selection artifact',
     );
+});
+
+test('idle queues update immediately, reconnect resyncs and no timer polls', async ({
+    page,
+}) => {
+    await page.clock.install();
+    let jobs: (typeof ready)[] = [];
+    let calls = 0;
+    await page.route('**/api/v1/jobs', async (route) => {
+        calls++;
+        await route.fulfill({
+            json: { jobs, queues: ['main'], invalid_records: 0 },
+        });
+    });
+    await page.goto('/');
+    await expect.poll(() => calls).toBe(1);
+    await page.clock.fastForward(20000);
+    expect(calls).toBe(1);
+    jobs = [ready];
+    await change(page, [{ queue: 'main', id: ready.id, artifact: false }]);
+    await expect(
+        page.getByRole('button', { name: /Example recording/ }),
+    ).toBeVisible();
+    await expect(
+        page.getByText('Live updates connected.', { exact: false }),
+    ).toBeVisible();
+    await page.evaluate(() => (window as any).liveEvents.onerror());
+    await expect(page.getByText(/Live updates disconnected/)).toBeVisible();
+    jobs = [];
+    await change(page, [], true);
+    await expect(
+        page.getByRole('button', { name: /Example recording/ }),
+    ).toHaveCount(0);
+    expect(calls).toBe(3);
+});
+
+test('artifact-only events refresh visible saved text without a status change', async ({
+    page,
+}) => {
+    let revision = 'Original text';
+    await page.route('**/api/v1/**', async (route) => {
+        const path = new URL(route.request().url()).pathname;
+        if (path.endsWith('/jobs'))
+            await route.fulfill({
+                json: { jobs: [ready], queues: ['main'], invalid_records: 0 },
+            });
+        else if (path.endsWith('/transcript'))
+            await route.fulfill({
+                json: { content: revision, format: 'text' },
+            });
+        else await route.fulfill({ json: ready });
+    });
+    await page.goto('/');
+    await page.getByRole('button', { name: /Example recording/ }).click();
+    await expect(page.locator('pre')).toContainText('Original text');
+    revision = 'Replaced saved text';
+    await change(page, [{ queue: 'main', id: ready.id, artifact: true }]);
+    await expect(page.locator('pre')).toContainText('Replaced saved text');
+});
+
+test('changes during an in-flight refresh are retained and artifact flags merge', async ({
+    page,
+}) => {
+    let calls = 0;
+    let revision = 'Before';
+    let release: (() => void) | undefined;
+    await page.route('**/api/v1/**', async (route) => {
+        const path = new URL(route.request().url()).pathname;
+        if (path.endsWith('/jobs')) {
+            if (++calls === 2)
+                await new Promise<void>((resolve) => {
+                    release = resolve;
+                });
+            await route.fulfill({
+                json: { jobs: [ready], queues: ['main'], invalid_records: 0 },
+            });
+        } else if (path.endsWith('/transcript'))
+            await route.fulfill({
+                json: { content: revision, format: 'text' },
+            });
+        else await route.fulfill({ json: ready });
+    });
+    await page.goto('/');
+    await page.getByRole('button', { name: /Example recording/ }).click();
+    await expect(page.locator('pre')).toContainText('Before');
+    await change(page, [{ queue: 'main', id: ready.id, artifact: false }]);
+    await expect.poll(() => Boolean(release)).toBe(true);
+    revision = 'After';
+    await change(page, [{ queue: 'main', id: ready.id, artifact: false }]);
+    await change(page, [{ queue: 'main', id: ready.id, artifact: true }]);
+    release?.();
+    await expect(page.locator('pre')).toContainText('After');
+    expect(calls).toBe(3);
 });

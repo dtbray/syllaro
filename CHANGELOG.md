@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Replace web queue polling with Linux filesystem notifications and server-sent
+  events, including external worker changes, saved artifact updates, and reconnect
+  recovery. CLI configuration and persisted job formats remain compatible.
+
 - Refine the web workspace with stable status counts, separate queue browsing and
   submission controls, readable artifacts, and mobile detail/back navigation.
   Load artifacts on demand with per-tab retry and guarded caching; manual refresh

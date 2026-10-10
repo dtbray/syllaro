@@ -51,6 +51,10 @@
     let submitting = $state(false);
     let retrying = $state(false);
     let lastUpdated = $state('');
+    let live = $state(false);
+    type Change = { queue: string; id: string; artifact: boolean };
+    let pendingChanges: Change[] = [];
+    let pendingReset = false;
     let artifactTab = $state('transcript');
     const STATUS_ORDER = [
         'pending',
@@ -72,11 +76,6 @@
             ? jobs
             : jobs.filter((job) => job.queue === queueFilter),
     );
-    const active = $derived(
-        jobs.some((job) =>
-            ['pending', 'running', 'summarizing'].includes(job.status),
-        ),
-    );
     const counts = $derived(
         STATUS_ORDER.map(
             (status) =>
@@ -94,8 +93,10 @@
         value ? new Date(value * 1000).toLocaleString() : 'Not recorded';
     const markdown = (content: string) =>
         DOMPurify.sanitize(marked.parse(content, { async: false }));
-    const sameJob = (a: Job | null, b: Job) =>
-        a?.id === b.id && a?.queue === b.queue;
+    const sameJob = (
+        a: Pick<Job, 'id' | 'queue'> | null,
+        b: Pick<Job, 'id' | 'queue'>,
+    ) => a?.id === b.id && a?.queue === b.queue;
     function invalidateArtifacts() {
         ++artifactEpoch;
         ++cacheVersion;
@@ -208,7 +209,7 @@
             .getElementById(selected ? 'job-details' : 'queue-filter')
             ?.focus();
     }
-    async function refresh(forceArtifacts = false) {
+    async function refresh(forceArtifacts = false, changes?: Change[]) {
         if (refreshing) return;
         refreshing = true;
         try {
@@ -220,8 +221,16 @@
             error = '';
             if (selected) {
                 const current = jobs.find((job) => sameJob(selected, job));
-                if (current) await updateDetails(current, forceArtifacts);
-                else {
+                if (current) {
+                    const change = changes?.find((item) =>
+                        sameJob(current, item),
+                    );
+                    if (!changes || change)
+                        await updateDetails(
+                            current,
+                            forceArtifacts || !!change?.artifact,
+                        );
+                } else {
                     ++jobGeneration;
                     invalidateArtifacts();
                     selected = null;
@@ -234,6 +243,7 @@
             error = String(e instanceof Error ? e.message : e);
         } finally {
             refreshing = false;
+            if (pendingReset || pendingChanges.length) void flushChanges();
         }
     }
     async function submit(event: SubmitEvent) {
@@ -300,13 +310,42 @@
             retrying = false;
         }
     }
+    async function flushChanges() {
+        if (refreshing) return;
+        const reset = pendingReset;
+        const changes = pendingChanges;
+        pendingReset = false;
+        pendingChanges = [];
+        await refresh(reset, reset ? undefined : changes);
+    }
     onMount(() => {
+        const events = new EventSource('/api/v1/events');
+        events.addEventListener('change', (event) => {
+            const message = JSON.parse((event as MessageEvent).data) as {
+                reset: boolean;
+                changes: Change[];
+            };
+            live = true;
+            pendingReset ||= message.reset;
+            for (const change of message.changes) {
+                const previous = pendingChanges.find((item) =>
+                    sameJob(item, change),
+                );
+                if (previous) previous.artifact ||= change.artifact;
+                else pendingChanges.push(change);
+            }
+            if (pendingChanges.length > 1024) {
+                pendingChanges = [];
+                pendingReset = true;
+            }
+            void flushChanges();
+        });
+        events.onerror = () => {
+            live = false;
+        };
         void refresh();
-        const timer = setInterval(() => {
-            if (active || error) void refresh();
-        }, 5000);
         return () => {
-            clearInterval(timer);
+            events.close();
             ++jobGeneration;
             ++detailRequest;
             ++artifactEpoch;
@@ -627,9 +666,9 @@
         </Card.Root>
     </main>
     <footer class="mt-6 text-sm text-muted-foreground">
-        {active
-            ? 'Polling active queues every 5 seconds.'
-            : 'Queue idle. Use Refresh to check for external changes.'} Transcribed
+        {live
+            ? 'Live updates connected.'
+            : 'Live updates disconnected. Reconnecting; Refresh is available.'} Transcribed
         jobs may await a separate summarization run.
     </footer>
 </div>
