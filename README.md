@@ -259,3 +259,8 @@ cd frontend && npx playwright install chromium && npm test
 
 The core test suite skips only optional HTTP tests if FastAPI/HTTPX are absent;
 shared queue-operation tests still run. Browser tests use synthetic mocked API data.
+
+The UI uses locally vendored shadcn-svelte Vega components with Bits UI behavior,
+system light/dark styling, and locally bundled fonts. See
+[frontend/COMPONENTS.md](frontend/COMPONENTS.md) for component maintenance and licensing.
+Run `npm --prefix frontend run format` or `format:check` for frontend formatting.

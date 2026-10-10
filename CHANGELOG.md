@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Replace hand-built web controls with vendored shadcn-svelte components, accessible
+  artifact tabs and scroll areas, and system light/dark styling. API and queue
+  behavior remain unchanged; frontend component/tool dependencies are pinned.
+
 - Allow explicit web LAN binding with `--host IP`; loopback remains the default
   and browser same-origin writes and trusted-host checks remain enforced.
 
