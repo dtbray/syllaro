@@ -69,6 +69,10 @@ and provide a read-only Hugging Face token as `HF_TOKEN` in the worker's
 environment. Keep tokens outside Git and command-line arguments. Audio
 processing runs locally. Set `diarize` to false to skip speaker attribution.
 Speaker labels do not establish real names; overlapping speech needs review.
+Diarization also saves `audio.speaker-turns.json` (a versioned, anonymous
+speaker-turn timeline) alongside `audio.json`. It contains timestamps and
+recording-local speaker labels, **not** voice embeddings or persistent identities.
+
 Silero performs speech detection without a gated model. Speaker diarization
 runs separately after alignment, so a cached transcript can gain speaker
 labels without repeating transcription. Its token is read from the environment.
