@@ -5,6 +5,7 @@ import sys
 import tempfile
 import types
 import unittest
+from contextlib import nullcontext
 from pathlib import Path
 from unittest.mock import Mock, patch
 
@@ -25,6 +26,7 @@ class TranscribeTest(unittest.TestCase):
             audio.touch()
             calls = []
             torch = types.SimpleNamespace(
+                inference_mode=nullcontext,
                 float16="float16",
                 float32="float32",
                 set_num_threads=Mock(),
@@ -32,9 +34,15 @@ class TranscribeTest(unittest.TestCase):
             )
             model = Mock()
             model.return_value.generation_config.is_multilingual = multilingual
+            model.return_value.generate.return_value = {
+                "segments": [[{"start": 0, "end": 2, "tokens": [1]}]]
+            }
             processor = Mock()
-            recognizer = Mock(return_value={"chunks": [{"timestamp": (0, 2), "text": "Evidence"}]})
-            pipeline = Mock(return_value=recognizer)
+            processor.return_value.return_value = {
+                "input_features": Mock(),
+                "attention_mask": Mock(),
+            }
+            processor.return_value.tokenizer.decode.return_value = "Evidence"
 
             def load_align(**kwargs):
                 calls.append(kwargs["device"])
@@ -54,7 +62,6 @@ class TranscribeTest(unittest.TestCase):
                 "transformers": types.SimpleNamespace(
                     AutoModelForSpeechSeq2Seq=types.SimpleNamespace(from_pretrained=model),
                     AutoProcessor=types.SimpleNamespace(from_pretrained=processor),
-                    pipeline=pipeline,
                 ),
             }
             previous = os.umask(0o022)
@@ -88,7 +95,24 @@ class TranscribeTest(unittest.TestCase):
             expected = {"num_beams": 5}
             if multilingual:
                 expected.update(language="en", task="transcribe")
-            self.assertEqual(recognizer.call_args.kwargs["generate_kwargs"], expected)
+            actual = model.return_value.generate.call_args.kwargs
+            self.assertEqual({k: actual[k] for k in expected}, expected)
+            self.assertTrue(actual["return_timestamps"])
+            self.assertTrue(actual["return_segments"])
+            self.assertFalse(processor.return_value.call_args.kwargs["truncation"])
             self.assertEqual(json.loads(transcript.read_text())["language"], "en")
             self.assertEqual(transcript.stat().st_mode & 0o777, 0o600)
             self.assertFalse(transcript.with_suffix(".transcribed.tmp").exists())
+
+    def test_native_segments_reject_missing_reversed_and_nonfinite_timestamps(self):
+        tokenizer = Mock()
+        tokenizer.decode.return_value = "Evidence"
+        for begin, end in ((None, 2), (2, 1), (0, float("nan")), (-1, 2), (0, 0)):
+            with self.subTest(begin=begin, end=end), self.assertRaises(RuntimeError):
+                transcribe.generated_segments(
+                    {"segments": [[{"start": begin, "end": end, "tokens": [1]}]]}, tokenizer
+                )
+        valid = transcribe.generated_segments(
+            {"segments": [[{"start": 30, "end": 32, "tokens": [1]}]]}, tokenizer
+        )
+        self.assertEqual(valid, [{"start": 30.0, "end": 32.0, "text": "Evidence"}])

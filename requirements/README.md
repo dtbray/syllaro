@@ -29,3 +29,12 @@ paths remain external requirements; see `../docs/gpu-pascal.md`.
 When updating, use a separate candidate environment, run `pip check`, test
 transcription and diarization on real media, and regenerate the pins only after
 those checks pass. Do not upgrade the active ingestion environment in place.
+
+## Isolated YouTube downloader
+
+`download.in` and its hashed `download.lock.txt` select yt-dlp's default extras and
+EJS challenge solver without upgrading an active ML virtualenv. Install the lock
+in a separate downloader environment and expose its executable plus a supported
+Deno runtime on the worker PATH. See [recovery validation](../docs/testing/2026-10-09-pipeline-recovery.md).
+Regenerate with `uv pip compile --universal --generate-hashes requirements/download.in
+--output-file requirements/download.lock.txt` and review all changes.

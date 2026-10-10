@@ -164,15 +164,30 @@ def run_process(args, log, config):
         if env.get("LD_LIBRARY_PATH"):
             paths.append(env["LD_LIBRARY_PATH"])
         env["LD_LIBRARY_PATH"] = ":".join(paths)
+    from syllaro.failures import log_failure
+
     with log.open("ab") as stream:
-        subprocess.run(
-            args,
-            check=True,
-            stdout=stream,
-            stderr=stream,
-            timeout=config["process_timeout"],
-            env=env,
-        )
+        offset = stream.tell()
+        try:
+            subprocess.run(
+                args,
+                check=True,
+                stdout=stream,
+                stderr=stream,
+                timeout=config["process_timeout"],
+                env=env,
+            )
+        except subprocess.CalledProcessError as error:
+            stream.flush()
+            executable = Path(args[0]).name
+            label = (
+                Path(args[1]).name
+                if executable.startswith("python") and len(args) > 1
+                else executable
+            )
+            raise RuntimeError(log_failure(log, label, error.returncode, offset)) from error
+        except subprocess.TimeoutExpired as error:
+            raise RuntimeError("Processing timed out; cached inputs retained for retry") from error
 
 
 def ingest(job: Job, root: Path, config: Config) -> str:

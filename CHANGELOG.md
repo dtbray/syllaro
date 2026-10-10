@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- Fix Transformers podcast timestamp failures using native Whisper long-form
+  segment decoding before independent word alignment. Keep strict boundary checks.
+  Report redacted subprocess causes instead of full command arguments, and provide
+  a separate hashed YouTube download environment with EJS runtime setup guidance.
+
 - Replace hand-built web controls with vendored shadcn-svelte components, accessible
   artifact tabs and scroll areas, and system light/dark styling. API and queue
   behavior remain unchanged; frontend component/tool dependencies are pinned.

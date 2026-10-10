@@ -10,6 +10,29 @@ import time
 from pathlib import Path
 
 
+def generated_segments(result, tokenizer):
+    """Use native Whisper segment boundaries; never guess missing timestamps."""
+    batches = result.get("segments")
+    if not isinstance(batches, list) or len(batches) != 1:
+        raise RuntimeError("Native transcription did not return one segment batch")
+    segments = []
+    previous = 0.0
+    for segment in batches[0]:
+        begin, end = segment.get("start"), segment.get("end")
+        if begin is None or end is None:
+            raise RuntimeError("Native transcription segment is missing a timestamp")
+        begin, end = float(begin), float(end)
+        if not math.isfinite(begin) or not math.isfinite(end) or begin < previous or end <= begin:
+            raise RuntimeError("Native transcription segment has invalid timestamps")
+        text = tokenizer.decode(segment["tokens"], skip_special_tokens=True).strip()
+        if text:
+            segments.append({"start": begin, "end": end, "text": text})
+        previous = begin
+    if not segments:
+        raise RuntimeError("Transcription is empty")
+    return segments
+
+
 def main():
     os.umask(0o077)
     parser = argparse.ArgumentParser(description=__doc__)
@@ -35,7 +58,7 @@ def main():
     # Imports stay in this optional subprocess, never in ordinary CLI startup.
     import torch
     import whisperx
-    from transformers import AutoModelForSpeechSeq2Seq, AutoProcessor, pipeline
+    from transformers import AutoModelForSpeechSeq2Seq, AutoProcessor
 
     torch.set_num_threads(args.threads)
     started = time.monotonic()
@@ -50,30 +73,27 @@ def main():
     elif args.language != "en":
         raise ValueError("English-only ASR model requires language en")
     processor = AutoProcessor.from_pretrained(str(args.model_path), local_files_only=True)
-    recognizer = pipeline(
-        "automatic-speech-recognition",
-        model=model,
-        tokenizer=processor.tokenizer,
-        feature_extractor=processor.feature_extractor,
-        device=0 if args.device == "cuda" else -1,
-        dtype=dtype,
-        chunk_length_s=30,
-        batch_size=args.batch_size,
+    model.to(args.device)
+    inputs = processor(
+        audio,
+        sampling_rate=16000,
+        return_tensors="pt",
+        truncation=False,
+        padding="longest",
+        return_attention_mask=True,
     )
-    result = recognizer(audio, return_timestamps=True, generate_kwargs=generation)
-    segments = []
-    for chunk in result["chunks"]:
-        begin, end = chunk["timestamp"]
-        if begin is None or end is None:
-            raise RuntimeError("Transcription chunk is missing a timestamp")
-        begin, end = float(begin), float(end)
-        if not math.isfinite(begin) or not math.isfinite(end) or begin < 0 or end < begin:
-            raise RuntimeError("Transcription chunk has invalid timestamps")
-        segments.append({"start": begin, "end": end, "text": chunk["text"]})
-    if not segments or not any(s["text"].strip() for s in segments):
-        raise RuntimeError("Transcription is empty")
+    with torch.inference_mode():
+        result = model.generate(
+            inputs["input_features"].to(args.device, dtype=dtype),
+            attention_mask=inputs["attention_mask"].to(args.device),
+            return_timestamps=True,
+            return_segments=True,
+            condition_on_prev_tokens=False,
+            **generation,
+        )
+    segments = generated_segments(result, processor.tokenizer)
     print(json.dumps({"transcription_seconds": round(time.monotonic() - started, 1)}), flush=True)
-    del recognizer, processor, model
+    del result, inputs, processor, model
     gc.collect()
     if args.device == "cuda":
         torch.cuda.empty_cache()

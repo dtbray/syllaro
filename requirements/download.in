@@ -1,0 +1,3 @@
+# Separate download-only environment; never upgrade the active ML virtualenv.
+yt-dlp[default]==2026.8.19
+yt-dlp-ejs==0.8.0
