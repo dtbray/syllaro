@@ -12,7 +12,7 @@ workstation inference uses an explicit SSH tunnel and per-job profile.
 
 ## Development
 
-Python 3.10–3.13 on Linux. The queue uses POSIX file locking.
+Python 3.12–3.14 on Linux. The queue uses POSIX file locking.
 
 ```bash
 python3 -m venv .venv
@@ -27,7 +27,7 @@ syllaro --help
 Run `make check` for lint, formatting validation, and tests; `make format`
 formats code, and `make build` builds the distributable wheel. Ruff is the
 single linter and formatter, pinned to the same version locally and in CI.
-CI checks the oldest and newest supported Python versions and builds a wheel.
+CI checks all three supported Python versions and builds a wheel.
 ML dependencies remain separate from these lightweight development checks.
 Configuration and persisted jobs have dependency-free typed schemas and runtime
 validation in `src/syllaro/schema.py`. Existing jobs need no migration.
@@ -229,6 +229,18 @@ Additional queues must be explicitly configured by the server operator:
   --queue podcast-audio=~/.config/syllaro/podcast-audio-pilot.json \
   --queue publisher-transcripts=~/.config/syllaro/podcast-transcript-pilot.json
 ```
+
+The browser receives live changes through `/api/v1/events` (server-sent events).
+The Linux web adapter watches durable job writes and saved artifacts, including
+changes made by separate CLI workers. There is no periodic browser polling.
+Reconnecting reloads current state; slow clients and filesystem event overflow
+also trigger a full resync. A disconnected indicator and manual Refresh remain
+available. This updates saved results, not partial speech or streamed model tokens.
+Reverse proxies must disable buffering for the event stream.
+
+Queues are separate configured data directories with their own jobs, artifacts,
+and worker locks. The browsing filter does not change the submission destination;
+“All queues” combines the view only.
 
 The API exposes `/api/v1/health`, `/jobs` (GET/POST), `/jobs/{id}`,
 `/jobs/{id}/transcript`, `/briefing`, `/action-items` (GET), and

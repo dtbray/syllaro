@@ -7,7 +7,7 @@ name = "syllaro"
 version = "0.2.0"
 description = "Local-first media transcription, speaker attribution, and concise briefings"
 readme = "README.md"
-requires-python = ">=3.10,<3.14"
+requires-python = ">=3.12,<3.15"
 license = "AGPL-3.0-or-later"
 license-files = ["LICENSE"]
 authors = [{name = "Thomas Bray"}]
@@ -31,7 +31,7 @@ Issues = "https://github.com/dtbray/syllaro/issues"
 packages = ["src/syllaro"]
 
 [tool.ruff]
-target-version = "py310"
+target-version = "py312"
 line-length = 100
 
 [tool.ruff.lint]

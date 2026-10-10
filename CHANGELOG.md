@@ -2,6 +2,19 @@
 
 ## Unreleased
 
+- Align package metadata and CI with supported Python 3.12–3.14 on Linux.
+  Python 3.10 and 3.11 are no longer supported by the core package.
+
+- Replace web queue polling with Linux filesystem notifications and server-sent
+  events, including external worker changes, saved artifact updates, and reconnect
+  recovery. CLI configuration and persisted job formats remain compatible.
+
+- Refine the web workspace with stable status counts, separate queue browsing and
+  submission controls, readable artifacts, and mobile detail/back navigation.
+  Load artifacts on demand with per-tab retry and guarded caching; manual refresh
+  and job lifecycle changes refresh cached content. Keep API, persisted jobs and
+  worker behavior unchanged; invalid form input no longer triggers API polling.
+
 - Fix Transformers podcast timestamp failures using native Whisper long-form
   segment decoding before independent word alignment. Keep strict boundary checks.
   Report redacted subprocess causes instead of full command arguments, and provide
