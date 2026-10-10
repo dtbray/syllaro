@@ -46,6 +46,19 @@ def main():
             print(json.dumps({"diarization_progress": milestone}), flush=True)
 
     turns = pipeline(str(args.audio), progress_callback=progress)
+    # Keep the original speaker turns before word-level attribution.
+    # These are anonymous time intervals, NOT speaker embeddings.
+    turns_path = args.transcript.with_suffix(".speaker-turns.json")
+    turns_tmp = turns_path.with_suffix(".speaker-turns.tmp")
+    turns_tmp.unlink(missing_ok=True)
+    speaker_turns = [
+        {"start": float(row.start), "end": float(row.end), "speaker": str(row.speaker)}
+        for row in turns.itertuples(index=False)
+    ]
+    turns_tmp.write_text(
+        json.dumps({"schema_version": 1, "turns": speaker_turns}, indent=2) + "\n"
+    )
+    turns_tmp.replace(turns_path)
     transcript = json.loads(args.transcript.read_text())
     result = whisperx.assign_word_speakers(turns, transcript)
     result["_syllaro_diarized"] = True
