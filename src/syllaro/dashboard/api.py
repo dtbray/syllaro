@@ -1,7 +1,8 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
-"""Optional, loopback-only HTTP adapter; never starts a processing worker."""
+"""Optional HTTP adapter with explicit binding; never starts a processing worker."""
 
 import argparse
+import ipaddress
 import json
 from pathlib import Path
 from typing import Literal
@@ -72,12 +73,14 @@ class ErrorBody(BaseModel):
 ERRORS = {status: {"model": ErrorBody} for status in (400, 403, 404, 409, 413, 422, 423, 500)}
 
 
-def create_app(queues: dict[str, Path], frontend: Path | None = None) -> FastAPI:
+def create_app(
+    queues: dict[str, Path], frontend: Path | None = None, *, host: str = "127.0.0.1"
+) -> FastAPI:
     if not queues or any(not name.replace("-", "").isalnum() for name in queues):
         raise ValueError("Provide named queues using letters, numbers and hyphens")
     app = FastAPI(title="Syllaro local API", version="1.0.0")
     app.add_middleware(
-        TrustedHostMiddleware, allowed_hosts=["localhost", "127.0.0.1", "[::1]", "testserver"]
+        TrustedHostMiddleware, allowed_hosts=["localhost", "127.0.0.1", "[::1]", "testserver", host]
     )
 
     @app.middleware("http")
@@ -227,8 +230,17 @@ def main():
         help="Additional existing queue configs",
     )
     parser.add_argument("--frontend-dir", type=Path, default=Path("frontend/dist"))
+    parser.add_argument(
+        "--host", default="127.0.0.1", help="Bind address; use a LAN IP for network access"
+    )
     parser.add_argument("--port", type=int, default=8765)
     args = parser.parse_args()
+    try:
+        address = ipaddress.ip_address(args.host)
+        if address.is_unspecified:
+            parser.error("Use a concrete interface address, such as your LAN IP")
+    except ValueError:
+        parser.error("--host must be an IP address")
     configs = {"main": args.config}
     for value in args.queue:
         name, separator, path = value.partition("=")
@@ -241,7 +253,9 @@ def main():
     }
     import uvicorn
 
-    uvicorn.run(create_app(queues, args.frontend_dir), host="127.0.0.1", port=args.port)
+    uvicorn.run(
+        create_app(queues, args.frontend_dir, host=args.host), host=args.host, port=args.port
+    )
 
 
 if __name__ == "__main__":

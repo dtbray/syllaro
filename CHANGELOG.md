@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Allow explicit web LAN binding with `--host IP`; loopback remains the default
+  and browser same-origin writes and trusted-host checks remain enforced.
+
 - Add an optional localhost FastAPI web adapter and Svelte 5 interface for existing
   jobs, YouTube submission, artifact viewing and locked retries. CLI submission and
   retry share the same queue operations; no worker or job-state migration is added.

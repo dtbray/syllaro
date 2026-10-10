@@ -237,8 +237,10 @@ configured queues. OpenAPI is available at `/openapi.json`. Invalid records are
 counted rather than silently presenting a complete list. Retry returns 423 while
 an existing worker owns the queue and 409 for jobs that are not failed.
 
-The server always binds to 127.0.0.1: it has no authentication and must not be
-exposed through a network-facing proxy. To view it on another machine, use an SSH
+The server binds to 127.0.0.1 by default. For explicitly authorized LAN access,
+pass `--host YOUR_LAN_IP`; this exposes job submission and private artifacts without
+authentication to devices that can reach that address. Bind a concrete interface IP
+rather than every interface. To retain loopback-only access, use an SSH
 loopback forward: `ssh -N -L 127.0.0.1:8765:127.0.0.1:8765 USER@SYLLARO_HOST`.
 Local browser writes must be same-origin. Artifacts are private data; Markdown is
 sanitized in the browser. There is no scheduling, worker administration, model

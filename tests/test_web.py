@@ -136,6 +136,30 @@ class WebTests(unittest.TestCase):
         self.assertEqual(self.client.get("/api/v1/jobs/broken").status_code, 500)
         self.assertEqual(self.client.get("/api/v1/jobs?queue=unknown").status_code, 404)
 
+    def test_explicit_lan_host_preserves_origin_checks(self):
+        with TestClient(
+            create_app({"main": self.root}, host="192.168.1.157"),
+            base_url="http://192.168.1.157:8765",
+        ) as client:
+            self.assertEqual(client.get("/api/v1/jobs").status_code, 200)
+            response = client.post(
+                "/api/v1/jobs",
+                headers={"Origin": "http://192.168.1.157:8765"},
+                json={"source": "https://youtu.be/example"},
+            )
+            self.assertEqual(response.status_code, 201)
+            self.assertEqual(
+                client.post(
+                    "/api/v1/jobs",
+                    headers={"Origin": "https://foreign.example"},
+                    json={"source": "https://youtu.be/example"},
+                ).status_code,
+                403,
+            )
+            self.assertEqual(
+                client.get("/api/v1/jobs", headers={"Host": "foreign.example"}).status_code, 400
+            )
+
     def test_storage_failure_is_sanitized(self):
         with patch("syllaro.cli.write_json", side_effect=OSError("private path and token")):
             response = self.client.post("/api/v1/jobs", json={"source": "https://youtu.be/x"})
