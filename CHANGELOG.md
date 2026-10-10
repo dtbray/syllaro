@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Align package metadata and CI with supported Python 3.12–3.14 on Linux.
+  Python 3.10 and 3.11 are no longer supported by the core package.
+
 - Replace web queue polling with Linux filesystem notifications and server-sent
   events, including external worker changes, saved artifact updates, and reconnect
   recovery. CLI configuration and persisted job formats remain compatible.

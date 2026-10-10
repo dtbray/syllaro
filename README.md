@@ -12,7 +12,7 @@ workstation inference uses an explicit SSH tunnel and per-job profile.
 
 ## Development
 
-Python 3.10–3.13 on Linux. The queue uses POSIX file locking.
+Python 3.12–3.14 on Linux. The queue uses POSIX file locking.
 
 ```bash
 python3 -m venv .venv
@@ -27,7 +27,7 @@ syllaro --help
 Run `make check` for lint, formatting validation, and tests; `make format`
 formats code, and `make build` builds the distributable wheel. Ruff is the
 single linter and formatter, pinned to the same version locally and in CI.
-CI checks the oldest and newest supported Python versions and builds a wheel.
+CI checks all three supported Python versions and builds a wheel.
 ML dependencies remain separate from these lightweight development checks.
 Configuration and persisted jobs have dependency-free typed schemas and runtime
 validation in `src/syllaro/schema.py`. Existing jobs need no migration.
